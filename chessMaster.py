@@ -23,6 +23,8 @@ class chessMaster:
                     movelist = agentA.makeMove(self.board, self.board.legal_moves)
                 else:
                     movelist = agentB.makeMove(self.board, self.board.legal_moves)
+                active = not active
+
 
                 #todo logic
                 for move in movelist:
