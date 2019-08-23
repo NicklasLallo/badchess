@@ -49,13 +49,38 @@ class chessMaster:
 
 
 class chessBot(object):
-
     def makeMove(self, board, moves):
         pass
+    def evalPos(self, board):
+        return random.random()
+
+class aggroBot(chessBot):
+
+    def makeMove(self, board, moves):
+        zeroing = []
+        others  = []
+        checks  = []
+        for move in moves:
+            if board.is_zeroing(move): # favours captures and pawn moves
+                zeroing.append(move)
+            elif self.checking(board, move):
+                checks.append(move)
+            else:
+                others.append(move)
+
+        random.shuffle(zeroing)
+        random.shuffle(checks)
+        random.shuffle(others)
+        return zeroing + checks + others
+
+    def checking(self, board, move):
+        board.push(move)
+        check = board.is_check()
+        board.pop()
+        return check
 
     def evalPos(self, board):
-        pass
-
+        super().evalPos(self, board)
 
 class randomBot(chessBot):
 
@@ -65,12 +90,12 @@ class randomBot(chessBot):
         return moves
 
     def evalPos(self, board):
-        return random.random()
+        super().evalPos(self, board)
 
 if __name__ == "__main__":
 
+    bot2 = aggroBot()
     bot1 = randomBot()
-    bot2 = randomBot()
 
     game = chessMaster(bot1, bot2)
 
