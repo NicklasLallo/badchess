@@ -1,2 +1,2 @@
 # badchess
-Bad chessbots playing the most tourmanent of their lives
+Bad chessbots playing the most important tourmanent of their lives
