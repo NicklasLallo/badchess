@@ -92,6 +92,23 @@ class randomBot(chessBot):
     def evalPos(self, board):
         super().evalPos(self, board)
 
+# A bot that favours moves that start a piece type of low rank
+# Goes pawn -> knight -> bishop -> rook -> queen -> king
+class lowRankBot(chessBot):
+
+    def makeMove(self, board, moves):
+        moves = list(moves)
+        random.shuffle(moves)
+        
+        def pieceTypeOfMove(move):
+            return board.piece_at(move.from_square).piece_type
+        moves.sort(key = pieceTypeOfMove)
+
+        return moves
+    
+    def evalPos(self, board):
+        super().evalPos(self, board)
+
 if __name__ == "__main__":
 
     bot2 = aggroBot()
