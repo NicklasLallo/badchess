@@ -74,6 +74,9 @@ def sampleGames(agentA, agentB, chessVariant='Standard'):
 
 if __name__ == "__main__":
 
+    # Current bots:
+    # simple: randomBot, aggroBot, lowRankBot
+
     bot1 = simple.aggroBot()
     bot2 = simple.lowRankBot()
 
@@ -81,3 +84,5 @@ if __name__ == "__main__":
 
     print(game.output())
     sampleGames(bot1, bot2)
+    sampleGames(simple.randomBot(), bot2)
+    sampleGames(simple.randomBot(), bot1)
