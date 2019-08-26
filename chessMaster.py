@@ -4,6 +4,8 @@ import numpy as np
 import time
 import random
 import bots.simple as simple
+import operator
+import chessUtils
 
 class chessMaster:
 
@@ -48,12 +50,34 @@ class chessMaster:
     def output(self):
         return str(self.board)+'\n\n'+self.board.result()
 
+    def winner(self):
+        if self.board.result()=='1/2-1/2':
+            return (0.5,0.5)
+        elif self.board.result()=='1-0':
+            return (1,0)
+        else:
+            return (0,1)
+
+def sampleGames(agentA, agentB, chessVariant='Standard'):
+    results=(0,0)
+    sampleSize=100
+    prefix = "Playing "+str(sampleSize)+" games: "
+    chessUtils.printProgressBar(0, sampleSize, prefix, suffix = 'Complete', length = 20)
+    for i in range(0,sampleSize):
+        game = chessMaster(agentA, agentB, chessVariant)
+        results = tuple(map(operator.add, results, game.winner()))
+        # Update Progress Bar
+        chessUtils.printProgressBar(i + 1, sampleSize, prefix, suffix = 'Complete', length = 20)
+    print(type(agentA).__name__ +": "+str(results[0])+"%")
+    print(type(agentB).__name__ +": "+str(results[1])+"%")
+
 
 if __name__ == "__main__":
 
-    bot1 = simple.randomBot()
+    bot1 = simple.aggroBot()
     bot2 = simple.lowRankBot()
 
     game = chessMaster(bot1, bot2)
 
     print(game.output())
+    sampleGames(bot1, bot2)
