@@ -13,21 +13,28 @@ class chessBot(object):
 class aggroBot(chessBot):
 
     def makeMove(self, board, moves):
-        zeroing = []
-        others  = []
-        checks  = []
+        zeroing  = []
+        others   = []
+        checks   = []
+        captures = []
         for move in moves:
-            if board.is_zeroing(move): # favours captures and pawn moves
+            if board.is_capture(move):
+                captures.append(move)
+            elif board.is_zeroing(move): # favours captures and pawn moves
                 zeroing.append(move)
             elif self.checking(board, move):
                 checks.append(move)
             else:
                 others.append(move)
 
+        random.shuffle(captures)
         random.shuffle(zeroing)
         random.shuffle(checks)
         random.shuffle(others)
-        return zeroing + checks + others
+        move_types = [captures, zeroing, checks, others]
+        probabilites = [0.5, 0.25, 0.125, 0.125]
+        move_types = np.random.choice(move_types,4,False,probabilites)
+        return list(np.concatenate(move_types))
 
     def checking(self, board, move):
         board.push(move)
