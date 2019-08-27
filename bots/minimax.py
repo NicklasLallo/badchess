@@ -10,7 +10,8 @@ def minimax(board, eval_fun, this_prio_fun=max, next_prio_fun=min, depth=2, alfa
     if depth == 0:
         return eval_fun(board), None
 
-    moves = board.legal_moves
+    moves = list(board.legal_moves)
+    random.shuffle(moves)
     best_value = -this_prio_fun(-99999,99999)
     best_move = None
     if alfabeta is None:

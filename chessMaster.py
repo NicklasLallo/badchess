@@ -106,15 +106,20 @@ if __name__ == "__main__":
 
     # Current bots:
     # simple: randomBot, aggroBot, lowRankBot
+    # minimax: naiveMinimaxBot
 
     bot1 = simple.aggroBot()
     bot2 = simple.lowRankBot()
     bot3 = minimax.naiveMinimaxBot()
 
-    game = chessMaster(bot1, bot3)
+    for i in range(100000000):
+        game = chessMaster(bot1, bot3)
+        if game.winner() == (1,0,0):
+            break
+        print("\r{}".format(i), end="")
 
     print(game.output())
-    sampleGames(bot1, bot2)
-    sampleGames(bot1, bot3)
-    sampleGames(simple.randomBot(), bot2)
+    #sampleGames(bot3, bot1)
+    #sampleGames(bot3, bot2)
+    #sampleGames(simple.randomBot(), bot3)
     # sampleGames(simple.randomBot(), bot1)
