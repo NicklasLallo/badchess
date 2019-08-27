@@ -6,6 +6,9 @@ import random
 from bots import simple, minimax
 import operator
 import chessUtils
+import json
+import pandas
+from ast import literal_eval as make_tuple
 
 class chessMaster:
 
@@ -52,25 +55,52 @@ class chessMaster:
 
     def winner(self):
         if self.board.result()=='1/2-1/2':
-            return (0.5,0.5)
+            return (0,0,1)
         elif self.board.result()=='1-0':
-            return (1,0)
+            return (1,0,0)
         else:
-            return (0,1)
+            return (0,1,0)
 
 def sampleGames(agentA, agentB, chessVariant='Standard'):
-    results=(0,0)
+    results=(0,0,0)
     sampleSize=100
     prefix = "Playing "+str(sampleSize)+" games: "
     chessUtils.printProgressBar(0, sampleSize, prefix, suffix = 'Complete', length = 20)
     for i in range(0,sampleSize):
         game = chessMaster(agentA, agentB, chessVariant)
         results = tuple(map(operator.add, results, game.winner()))
+        saveToJSON(agentA, agentB, resultA=game.winner())
         # Update Progress Bar
         chessUtils.printProgressBar(i + 1, sampleSize, prefix, suffix = 'Complete', length = 20)
     print(type(agentA).__name__ +": "+str(results[0])+"%")
     print(type(agentB).__name__ +": "+str(results[1])+"%")
+    print("draws: "+str(results[2])+"%")
 
+def saveToJSON(agentA, agentB, datafile='database.json', resultA=(0,0,0)):
+    # with open(datafile, 'r+') as f:
+    df = pandas.read_json(datafile)
+    aName = type(agentA).__name__
+    bName = type(agentB).__name__
+
+    if not aName in df:
+        df.insert(0, aName, "(0,0,0)")
+    if not bName in df:
+        df.insert(0, bName, "(0,0,0)")
+
+    labels = df.index.union(df.columns)
+    df = df.reindex(index=labels, columns=labels, fill_value="(0,0,0)")
+
+    currentA = make_tuple(df[aName][bName])
+    currentB = make_tuple(df[bName][aName])
+
+    currentA = tuple(map(operator.add, resultA, currentA))
+    resultB  = (resultA[1], resultA[0], resultA[2])
+    currentB = tuple(map(operator.add, resultB, currentB))
+
+    df[aName][bName] = str(currentA)
+    df[bName][aName] = str(currentB)
+
+    df.to_json(datafile)
 
 if __name__ == "__main__":
 
@@ -84,5 +114,7 @@ if __name__ == "__main__":
     game = chessMaster(bot1, bot3)
 
     print(game.output())
+    sampleGames(bot1, bot2)
     sampleGames(bot1, bot3)
-    sampleGames(bot2, bot3)
+    sampleGames(simple.randomBot(), bot2)
+    # sampleGames(simple.randomBot(), bot1)
