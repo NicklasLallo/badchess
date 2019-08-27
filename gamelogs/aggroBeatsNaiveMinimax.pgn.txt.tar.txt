@@ -1,0 +1,9 @@
+[Event "Bot Champtionships Alpha"]
+[Site "?"]
+[Date "????.??.??"]
+[Round "?"]
+[White "?"]
+[Black "?"]
+[Result "1-0"]
+
+1. h4 Nh6 2. g4 Nxg4 3. b4 Rg8 4. h5 Rh8 5. f4 Rg8 6. e3 Nh6 7. a4 Rh8 8. a5 Rg8 9. f5 Nxf5 10. d3 Rh8 11. c3 Rg8 12. a6 bxa6 13. d4 Rh8 14. h6 gxh6 15. d5 Rg8 16. Rxa6 Bxa6 17. b5 Bc8 18. e4 Ng7 19. b6 cxb6 20. e5 Rh8 21. Rxh6 Rg8 22. e6 fxe6 23. c4 exd5 24. Rxh7 Ne6 25. Rxe7+ Kxe7 26. cxd5 Rxg1 27. d6+ Ke8 28. Qh5+ Rg6 29. Qxg6# 1-0
