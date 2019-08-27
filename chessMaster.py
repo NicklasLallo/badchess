@@ -3,7 +3,7 @@ import chess.pgn
 import numpy as np
 import time
 import random
-import bots.simple as simple
+from bots import simple, minimax
 import operator
 import chessUtils
 
@@ -79,10 +79,10 @@ if __name__ == "__main__":
 
     bot1 = simple.aggroBot()
     bot2 = simple.lowRankBot()
+    bot3 = minimax.naiveMinimaxBot()
 
-    game = chessMaster(bot1, bot2)
+    game = chessMaster(bot1, bot3)
 
     print(game.output())
-    sampleGames(bot1, bot2)
-    sampleGames(simple.randomBot(), bot2)
-    sampleGames(simple.randomBot(), bot1)
+    sampleGames(bot1, bot3)
+    sampleGames(bot2, bot3)
