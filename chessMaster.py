@@ -69,9 +69,9 @@ def sampleGames(agentA, agentB, chessVariant='Standard'):
     for i in range(0,sampleSize):
         game = chessMaster(agentA, agentB, chessVariant)
         results = tuple(map(operator.add, results, game.winner()))
-        saveToJSON(agentA, agentB, resultA=game.winner())
         # Update Progress Bar
         chessUtils.printProgressBar(i + 1, sampleSize, prefix, suffix = 'Complete', length = 20)
+    saveToJSON(agentA, agentB, resultA=results)
     print(type(agentA).__name__ +": "+str(results[0])+"%")
     print(type(agentB).__name__ +": "+str(results[1])+"%")
     print("draws: "+str(results[2])+"%")
@@ -112,14 +112,14 @@ if __name__ == "__main__":
     bot2 = simple.lowRankBot()
     bot3 = minimax.naiveMinimaxBot()
 
-    for i in range(100000000):
-        game = chessMaster(bot1, bot3)
-        if game.winner() == (1,0,0):
-            break
-        print("\r{}".format(i), end="")
-
+    game = chessMaster(bot1, bot3)
+    # for i in range(100000000):
+    #     game = chessMaster(bot1, bot3)
+    #     if game.winner() == (1,0,0):
+    #         break
+    #     print("\r{}".format(i), end="")
     print(game.output())
-    #sampleGames(bot3, bot1)
-    #sampleGames(bot3, bot2)
-    #sampleGames(simple.randomBot(), bot3)
+    # sampleGames(bot3, bot1)
+    # sampleGames(bot3, bot2)
+    # sampleGames(simple.randomBot(), bot3)
     # sampleGames(simple.randomBot(), bot1)

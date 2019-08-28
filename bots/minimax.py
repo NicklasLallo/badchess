@@ -6,7 +6,7 @@ import random
 from bots.simple import chessBot
 
 def minimax(board, eval_fun, this_prio_fun=max, next_prio_fun=min, depth=2, alfabeta=None):
-    
+
     if depth == 0:
         return eval_fun(board), None
 
@@ -20,7 +20,7 @@ def minimax(board, eval_fun, this_prio_fun=max, next_prio_fun=min, depth=2, alfa
         board.push(move)
         move_value, _ = minimax(
             board,
-            eval_fun, 
+            eval_fun,
             next_prio_fun,
             this_prio_fun,
             depth-1,
