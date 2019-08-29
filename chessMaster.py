@@ -22,15 +22,13 @@ class chessMaster:
         # gamelog = chess.pgn.Game()
         # gamelog.headers["Event"] = "Bot Championships Alpha"
 
+        self.play(agentA, agentB)
         if log:
             with open('previousGame.pgn', 'w') as f:
-                self.play(agentA, agentB)
                 gamelog = chess.pgn.Game.from_board(self.board)
                 gamelog.headers["Event"] = "Bot Champtionships Alpha"
                 f.write(str(gamelog))
                 f.close()
-        else:
-            self.play(agentA, agentB)
 
     def play(self, agentA, agentB):
         active = True
