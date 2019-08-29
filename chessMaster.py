@@ -106,7 +106,7 @@ if __name__ == "__main__":
 
     # Current bots:
     # simple: randomBot, aggroBot, lowRankBot
-    # minimax: naiveMinimaxBot
+    # minimax: naiveMinimaxBot, arrogantBot, suicideBot, suicideMirrorBot
 
     bot1 = simple.aggroBot()
     bot2 = simple.lowRankBot()
@@ -119,7 +119,8 @@ if __name__ == "__main__":
     #         break
     #     print("\r{}".format(i), end="")
     print(game.output())
-    # sampleGames(bot3, bot1)
-    # sampleGames(bot3, bot2)
+    sampleGames(minimax.suicideBot(), bot2)
+    sampleGames(minimax.suicideBot(), simple.randomBot())
+    # sampleGames(minimax.arrogantBot(), simple.randomBot())
     # sampleGames(simple.randomBot(), bot3)
     # sampleGames(simple.randomBot(), bot1)

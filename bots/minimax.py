@@ -57,3 +57,38 @@ class naiveMinimaxBot(chessBot):
 
     def evalPos(self, board):
         return self.value
+
+class arrogantBot(chessBot):
+    def __init__(self):
+        self.value = 0
+
+    def makeMove(self, board, moves):
+        my_color = board.turn
+        self.value, move = minimax(board, lambda x: naive_eval_fun(x, my_color), this_prio_fun=max, next_prio_fun=max)
+        # Compared to naiveMinimaxBot this one assumes that the opponent will make the worst possible move (for themselves)
+        return [move]
+
+    def evalPos(self, board):
+        return self.value
+
+class suicideBot(chessBot):
+    def __init__(self):
+        self.value = 0
+
+    def makeMove(self, board, moves):
+        my_color = board.turn
+        self.value, move = minimax(board, lambda x: naive_eval_fun(x, my_color), this_prio_fun=min, next_prio_fun=min)
+        # Compared to naiveMinimaxBot this one this to minimize it's own possition as quickly as possible
+        # The third permutation (this_prio_fun=min, next_pro_fun=max) would produce a similar suicidal bot
+        # But that bot would assume the opponent is also suicidal
+        return [move]
+
+    def evalPos(self, board):
+        return self.value
+
+class suicideMirrorBot(suicideBot):
+    def makeMove(self, board, moves):
+        my_color = board.turn
+        self.value, move = minimax(board, lambda x: naive_eval_fun(x, my_color), this_prio_fun=min, next_prio_fun=max)
+        # This bot should never win, only lose or draw, even against the suicideBot
+        return [move]
