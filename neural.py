@@ -86,6 +86,8 @@ class NeuralBot(chessBot):
         if self.gpu:
             boardsTensor = boardsTensor.cuda()
         value = self.model(boardsTensor).view(-1)
+        if not board.turn:
+            value = 1-value
         index = value.argmax().item()
         return [moves[index]]
         
