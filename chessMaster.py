@@ -9,6 +9,9 @@ import chessUtils
 import json
 import pandas
 from ast import literal_eval as make_tuple
+import neural
+import multiprocessing
+from queue import Empty as EmptyException
 
 class chessMaster:
 
@@ -27,6 +30,8 @@ class chessMaster:
             with open('previousGame.pgn', 'w') as f:
                 gamelog = chess.pgn.Game.from_board(self.board)
                 gamelog.headers["Event"] = "Bot Champtionships Alpha"
+                gamelog.headers["White"] = str(type(agentA).__name__)
+                gamelog.headers["Black"] = str(type(agentB).__name__)
                 f.write(str(gamelog))
                 f.close()
 
@@ -56,16 +61,27 @@ class chessMaster:
         else:
             return (0,1,0)
 
-def sampleGames(agentA, agentB, chessVariant='Standard'):
+def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False):
+
+    with multiprocessing.Pool(processes=workers) as pool:
+        processes = [pool.apply_async(chessMaster, (agentA, agentB, chessVariant)) for _ in range(num_games)]
+        if display_progress:
+            prefix = "Playing "+str(num_games)+" games: "
+            chessUtils.printProgressBar(0, num_games, prefix, suffix = 'Complete', length = 20)
+        games = []
+        for i, process in enumerate(processes):
+            games.append(process.get())
+            if display_progress:
+                chessUtils.printProgressBar(i+1, num_games, prefix, suffix = 'Complete', length = 20)
+    return games
+
+def sampleGames(agentA, agentB, chessVariant='Standard', workers=2):
     results=(0,0,0)
-    sampleSize=100
+    sampleSize=10
     prefix = "Playing "+str(sampleSize)+" games: "
-    chessUtils.printProgressBar(0, sampleSize, prefix, suffix = 'Complete', length = 20)
-    for i in range(0,sampleSize):
-        game = chessMaster(agentA, agentB, chessVariant)
+    games = playMultipleGames(agentA, agentB, sampleSize, workers, chessVariant, True)
+    for game in games:
         results = tuple(map(operator.add, results, game.winner()))
-        # Update Progress Bar
-        chessUtils.printProgressBar(i + 1, sampleSize, prefix, suffix = 'Complete', length = 20)
     saveToJSON(agentA, agentB, resultA=results)
     print(type(agentA).__name__ +": "+str(results[0])+"%")
     print(type(agentB).__name__ +": "+str(results[1])+"%")
@@ -103,19 +119,22 @@ if __name__ == "__main__":
     # simple: randomBot, aggroBot, lowRankBot
     # minimax: naiveMinimaxBot, arrogantBot, suicideBot, suicideMirrorBot
 
+    bot0 = simple.randomBot()
     bot1 = simple.aggroBot()
     bot2 = simple.lowRankBot()
     bot3 = minimax.naiveMinimaxBot()
 
-    game = chessMaster(bot1, bot3)
+    nbot1 = neural.NeuralBot(model="bad_neural_net.pt", gpu=True)
+
+
+    game = chessMaster(bot1, nbot1)
     # for i in range(100000000):
     #     game = chessMaster(bot1, bot3)
     #     if game.winner() == (1,0,0):
     #         break
     #     print("\r{}".format(i), end="")
     print(game.output())
-    sampleGames(minimax.suicideBot(), bot2)
-    sampleGames(minimax.suicideBot(), simple.randomBot())
+    sampleGames(minimax.suicideBot(), bot2, workers=4)
     # sampleGames(minimax.arrogantBot(), simple.randomBot())
     # sampleGames(simple.randomBot(), bot3)
     # sampleGames(simple.randomBot(), bot1)
