@@ -32,7 +32,7 @@ class aggroBot(chessBot):
         random.shuffle(checks)
         random.shuffle(others)
         move_types = [captures, zeroing, checks, others]
-        probabilites = [0.5, 0.25, 0.125, 0.125]
+        probabilites = [0.5, 0.30, 0.15, 0.05]
         move_types = np.random.choice(move_types,4,False,probabilites)
         return list(np.concatenate(move_types))
 

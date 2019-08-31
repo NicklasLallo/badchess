@@ -8,7 +8,8 @@ import time
 import random
 from bots.simple import chessBot
 from bots.minimax import suicideBot, minimax
-from chessMaster import chessMaster
+# from chessMaster import chessMaster
+import chessMaster
 
 def matchesToTensor(boards):
     '''
@@ -56,7 +57,7 @@ class NeuralBot(chessBot):
                 nn.Linear(65, 1)
             )
         elif isinstance(self.model,str):
-            self.model = torch.load(model)
+            self.model = torch.load(model, map_location='cpu')
         if self.gpu:
             self.model.cuda()
 
@@ -86,11 +87,11 @@ class NeuralBot(chessBot):
         if self.gpu:
             boardsTensor = boardsTensor.cuda()
         value = self.model(boardsTensor).view(-1)
-        if not board.turn:
+        if not board.turn: # add Not to attempt to win instead of lose
             value = 1-value
         index = value.argmax().item()
         return [moves[index]]
-        
+
     def makeMove(self, board, moves):
         return self.decideMove(board, moves)
         #value, move = minimax(board, self.evalPos, depth=1)
@@ -98,24 +99,27 @@ class NeuralBot(chessBot):
 
 
 if __name__ == "__main__":
-    LOAD_FILE = None #"bad_neural_net.pt"
+    LOAD_FILE = "bad_neural_net.pt" # None #"bad_neural_net.pt"
 
-    EPOCHS = 1000
+    EPOCHS = 4
     GAMES = 100
     BATCH_SIZE = 1000
     PLAYER = NeuralBot(model=LOAD_FILE, gpu=torch.cuda.is_available())
     OPPONENT = suicideBot()
+    MAX_TRAIN_GAMES = 850
+
     optimizer = torch.optim.Adam(PLAYER.model.parameters())
     loss_fun = nn.MSELoss()
+    new_games = []
     for epoch in range(EPOCHS):
-        new_games = []
+        new_games = new_games[:min(MAX_TRAIN_GAMES, len(new_games))]
         chessUtils.printProgressBar(0, GAMES, "Playing games", suffix = 'Complete', length = 20)
         for game in range(GAMES):
             with torch.no_grad():
-                game1 = chessMaster(PLAYER,OPPONENT).board
-                game2 = chessMaster(OPPONENT,PLAYER).board
-                new_games.append(game1)
-                new_games.append(game2)
+                game1 = chessMaster.chessMaster(PLAYER,PLAYER, log=False).board
+                game2 = chessMaster.chessMaster(PLAYER,PLAYER, log=False).board
+                new_games.insert(0, game1)
+                new_games.insert(0, game2)
                 chessUtils.printProgressBar(game + 1, GAMES, "Playing games", suffix = 'Complete', length = 20)
         matchesTensor, resultsTensor = matchesToTensor(new_games)
         dataset = data.TensorDataset(matchesTensor, resultsTensor)
