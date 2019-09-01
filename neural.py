@@ -98,6 +98,117 @@ class NeuralBot(chessBot):
         #return [move]
 
 
+def pickMoveFromCategory(pieceList, moveList, board):
+    # TODO optimize with recursion instead of complete matrix multiplication
+    # pieceList
+    # maxPiece = max(pieceList)
+    # # indexGen = (i for i,val in enumerate(pieceList) if val == maxPiece) # gets all the max pieces
+    # # indexPiece = next(ind for ind, i in enumerate(pieceList)) if i == maxPiece) # Gets first matching piece index
+    # indexPiece = pieceList.index(maxPiece)
+
+    # maxMove = max(moveList)
+    # indexMove = moveList.index(maxMove)
+
+    # movePossible = checkIfMove(indexMove, indexPiece, board)
+
+    # if not movePossible:
+    #     pickMoveFromCategory(pieceList[indexPiece]
+
+    moveArray = np.multiply(pieceList, moveList)
+    bestMove = lambda moveArray : numpy.unravel_index(indices=numpy.argmax(moveArray), shape=moveArray.shape())
+
+    movePossible = checkIfMove(bestMove(moveArray), board)
+    while(not movePossible):
+        moveArray[bestMove[0], bestMove[1]] = 0
+        movePossible = checkIfMove(bestMove(moveArray), board)
+
+def checkIfMove(move, board):
+    # pieces:
+    # bishop
+    # knight
+    # rook
+    # A,B lane pawn
+    # C, D lane pawn
+    # E, F lane pawn
+    # G, H lane pawn
+    # King
+    # Queen
+
+    # move types:
+    # castling
+    # forward capture (y-axis)
+    # backwards capture
+    # horizontal capture
+    # checking move
+    # forward move
+    # backward move
+    # left move
+    # right move
+
+    # Step 1, sort moves that matches piece type
+    def pieceMatch(square):
+        pieceType = board.piece_type_at(square)
+        PieceRank = chess.square_rank(square)
+        pieceFile = chess.square_file(square)
+        if move[0] == 0:
+            match = pieceMatch == 3 # Bishop
+        elif move[0] == 1:
+            match = pieceMatch == 2 # Knight
+        elif move[0] == 2:
+            match = pieceMatch == 4 # Rook
+        elif move[0] == 3:
+            match = pieceMatch == 1 and PieceFile < 2
+        elif move[0] == 4:
+            match = pieceMatch == 1 and 1 < PieceFile < 4
+        elif move[0] == 5:
+            match = pieceMatch == 1 and 3 < PieceFile < 6
+        elif move[0] == 6:
+            match = pieceMatch == 1 and 5 < PieceFile < 8
+        elif move[0] == 7:
+            match = pieceMatch == 6
+        elif move[0] == 8:
+            match = pieceMatch == 5
+        else:
+            print("move matrix dimension missmatch")
+        return match
+
+    moves = [move for move in board.legal_moves() if pieceMatch(move.from_square)]
+    # Step 2, sort moves that matches move type
+    def checking(board, move):
+        board.push(move)
+        check = board.is_check()
+        board.pop()
+        return check
+
+    def moveMatch(move):
+        if move[1] == 0:
+            match = board.is_castling(move)
+        elif move[1] == 1:
+            match = board.is_capture(move) and chess.square_rank(move.from_square) < chess.square_rank(move.to_square) # forward capture (y-axis)
+        elif move[1] == 2:
+            match = board.is_capture(move) and chess.square_rank(move.from_square) > chess.square_rank(move.to_square) # backwards capture
+        elif move[1] == 3:
+            match = board.is_capture(move) and chess.square_rank(move.from_square) == chess.square_rank(move.to_square) # horizontal capture
+        elif move[1] == 4:
+            match = checking(board, move)
+        elif move[1] == 5:
+            match = chess.square_rank(move.from_square) < chess.square_rank(move.to_square) # forward move
+        elif move[1] == 6:
+            match = chess.square_rank(move.from_square) > chess.square_rank(move.to_square)
+        elif move[1] == 7:
+            match = chess.square_file(move.from_square) > chess.square_file(move.to_square)
+        elif move[1] == 8:
+            match = chess.square_file(move.from_square) < chess.square_file(move.to_square)
+        return match
+
+    moves = [move for move in moves if moveMatch(move)]
+
+    if len(moves) == 0:
+        return False
+    else:
+        board.push(random.choice(moves))
+        return True
+
 if __name__ == "__main__":
     LOAD_FILE = "bad_neural_net.pt" # None #"bad_neural_net.pt"
 
