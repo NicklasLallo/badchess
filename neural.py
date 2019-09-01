@@ -11,6 +11,17 @@ from bots.minimax import suicideBot, minimax
 # from chessMaster import chessMaster
 import chessMaster
 
+def boardstateToTensor(board):
+    boardstateTensor = torch.zeros([65])
+    boardstateTensor[0] = float(board.turn)
+    for square in range(0,64):
+        if not board.piece_type_at(square) is None:
+            piece = board.piece_type_at(square)/6
+            if not board.color_at(square):
+                piece = -piece
+            boardstateTensor[square+1] = piece
+    return boardstateTensor
+
 def matchesToTensor(boards):
     '''
     Takes a list of Board and returns a Tensor of all boardstates and a Tensor with results
@@ -28,33 +39,24 @@ def matchesToTensor(boards):
         else:
             r = 0.5
         while len(board.move_stack) > 0:
-            boardstatesTensor[current_board, 0] = float(board.turn)
-            for square in range(0,64):
-                if not board.piece_type_at(square) is None:
-                    piece = board.piece_type_at(square)/6
-                    if not board.color_at(square):
-                        piece = -piece
-                    boardstatesTensor[current_board,square+1] = piece
+            boardstatesTensor[current_board,:] = boardstateToTensor(board)
             resultsTensor[current_board] = r
             current_board += 1
             board.pop()
     return boardstatesTensor, resultsTensor
 
-model = nn.Sequential(
-    nn.Linear(65, 65),
-    nn.LeakyReLU(),
-    nn.Linear(65, 1)
-)
+
 
 class NeuralBot(chessBot):
-    def __init__(self, model=None, gpu=False):
+    # Abstract class for NN bots that take a 65 dimensional boardstate as input
+    def __init__(self, model=None, gpu=False, out_size=1):
         self.model = model
         self.gpu = gpu
         if self.model is None:
             self.model = nn.Sequential(
                 nn.Linear(65, 65),
                 nn.LeakyReLU(),
-                nn.Linear(65, 1)
+                nn.Linear(65, out_size)
             )
         elif isinstance(self.model,str):
             self.model = torch.load(model, map_location='cpu')
@@ -62,12 +64,16 @@ class NeuralBot(chessBot):
             self.model.cuda()
 
     def evalPos(self, board):
-        board = board.copy()
-        m = board.pop()
-        board.clear_stack()
-        board.push(m)
-        boardTensor, _ = matchesToTensor([board])
-        boardTensor = boardTensor[0].unsqueeze(0)
+        pass
+    def makeMove(self, board, moves):
+        pass
+
+class NeuralBoardValueBot(NeuralBot):
+    def __init__(self, model=None, gpu=False):
+        super().__init__(model, gpu, 1)
+
+    def evalPos(self, board):
+        boardTensor = boardstateToTensor(board).unsqueeze(0)
         if self.gpu:
             boardTensor = boardTensor.cuda()
         value = self.model(boardTensor)
@@ -76,7 +82,7 @@ class NeuralBot(chessBot):
             value = 1-value
         return value
 
-    def decideMove(self, board, moves):
+    def makeMove(self, board, moves):
         moves = list(moves)
         boards = []
         for move in moves:
@@ -92,11 +98,18 @@ class NeuralBot(chessBot):
         index = value.argmax().item()
         return [moves[index]]
 
+class NeuralMoveCategorizerBot(NeuralBot):
+    def __init__(self, model=None, gpu=False):
+        super().__init__(model, gpu, None) #TODO: Change 'None' for #pieces+#move_categories 
+    
     def makeMove(self, board, moves):
-        return self.decideMove(board, moves)
-        #value, move = minimax(board, self.evalPos, depth=1)
-        #return [move]
+        boardTensor = boardstateToTensor(board).unsqueeze()
+        pieces_and_move_types = self.model(boardTensor)
+        #TODO: extract network output and 
+        return None
 
+    def evalPos(self, board):
+        return 0.5
 
 if __name__ == "__main__":
     LOAD_FILE = "bad_neural_net.pt" # None #"bad_neural_net.pt"
@@ -104,7 +117,7 @@ if __name__ == "__main__":
     EPOCHS = 100
     GAMES = 100
     BATCH_SIZE = 1000
-    PLAYER = NeuralBot(model=LOAD_FILE, gpu=False)
+    PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=False)
     GPU = torch.cuda.is_available()
     OPPONENT = suicideBot()
     MAX_TRAIN_GAMES = 850
