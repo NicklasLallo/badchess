@@ -97,8 +97,59 @@ class NeuralBot(chessBot):
         #value, move = minimax(board, self.evalPos, depth=1)
         #return [move]
 
+def labelMove(board, move):
+    pieceFile = board.square_file(move.from_square)
+    pieceType = board.piece_type_at(move.from_square)
+    if pieceType == 3:
+        piece = 0
+    elif pieceType == 2:
+        piece = 1
+    elif pieceType == 4:
+        piece = 2
+    if pieceType == 1 and pieceFile < 2:
+        piece = 3
+    if pieceType == 1 and 1 < pieceFile < 4
+        piece = 4
+    if pieceType == 1 and 3 < pieceFile < 6:
+        piece = 5
+    if pieceType == 1 and 5 < pieceFile < 8:
+        piece = 6
+    elif pieceType == 6:
+        piece = 7
+    elif pieceType == 5:
+        piece = 8
+    pieces = [0,0,0,0,0,0,0,0,0]
+    pieces[piece] = 1
+
+    moves = [0,0,0,0,0,0,0,0,0]
+    def checking(board, move):
+        board.push(move)
+        check = board.is_check()
+        board.pop()
+        return check
+    if board.is_castling(move):
+        moves[0] = 1
+    elif board.is_capture(move) and chess.square_rank(move.from_square) < chess.square_rank(move.to_square):
+        moves[1] = 1
+    elif = board.is_capture(move) and chess.square_rank(move.from_square) > chess.square_rank(move.to_square):
+        moves[2] = 1
+    elif board.is_capture(move) and chess.square_rank(move.from_square) == chess.square_rank(move.to_square):
+        moves[3] = 1
+    if checking(board, move):
+        moves[4] = 1
+    if board.square_rank(move.from_square) < chess.square_rank(move.to_square) # forward move:
+        moves[5] = 1
+    if board.square_rank(move.from_square) > chess.square_rank(move.to_square):
+        moves[6] = 1
+    if board.square_file(move.from_square) > chess.square_file(move.to_square):
+        moves[7] = 1
+    if board.square_file(move.from_square) < chess.square_file(move.to_square):
+        moves[8] = 1
+
+    return pieces+moves
 
 def pickMoveFromCategory(pieceList, moveList, board):
+    # input two numpy arrays [1x9] in dimensions
     # TODO optimize with recursion instead of complete matrix multiplication
     # pieceList
     # maxPiece = max(pieceList)
