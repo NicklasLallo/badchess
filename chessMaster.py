@@ -15,12 +15,29 @@ from queue import Empty as EmptyException
 
 class chessMaster:
 
-    def __init__(self, agentA, agentB, log=True, chessVariant='Standard'):
+    def __init__(self, agentA, agentB, log=True, chessVariant='Standard', nineSixty=False):
 
-        if not chessVariant == 'Standard':
-            pass
+        if chessVariant == 'Standard':
+            self.board = chess.Board(chess960=nineSixty)
+        elif chessVariant == 'Suicide':
+            self.board = chess.variant.SuicideBoard(chess960=nineSixty)
+        elif chessVariant == 'Giveaway':
+            self.board = chess.variant.GiveawayBoard(chess960=nineSixty)
+        elif chessVariant == 'Atomic':
+            self.board = chess.variant.Atomic(chess960=nineSixty)
+        elif chessVariant == 'King of the Hill':
+            self.board = chess.variant.KingOfTheHillBoard(chess960=nineSixty)
+        elif chessVariant == 'Racing Kings':
+            self.board = chess.variant.RacingKingsBoard(chess960=nineSixty)
+        elif chessVariant == 'Horde':
+            self.board = chess.variant.HordeBoard(chess960=nineSixty)
+        elif chessVariant == 'Three-check':
+            self.board = chess.variant.ThreeCheckBoard(chess960=nineSixty)
+        elif chessVariant == 'Crazyhouse':
+            self.board = chess.variant.CrazyhouseBoard(chess960=nineSixty)
         else:
-            self.board = chess.Board()
+            self.board = chess.Board(chess960=nineSixty)
+            print('ChessVariant missmatch')
 
         # gamelog = chess.pgn.Game()
         # gamelog.headers["Event"] = "Bot Championships Alpha"
