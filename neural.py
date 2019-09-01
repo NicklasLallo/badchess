@@ -212,39 +212,38 @@ def checkIfMove(move, board):
 if __name__ == "__main__":
     LOAD_FILE = "bad_neural_net.pt" # None #"bad_neural_net.pt"
 
-    EPOCHS = 4
+    EPOCHS = 100
     GAMES = 100
     BATCH_SIZE = 1000
-    PLAYER = NeuralBot(model=LOAD_FILE, gpu=torch.cuda.is_available())
+    PLAYER = NeuralBot(model=LOAD_FILE, gpu=False)
+    GPU = torch.cuda.is_available()
     OPPONENT = suicideBot()
     MAX_TRAIN_GAMES = 850
 
     optimizer = torch.optim.Adam(PLAYER.model.parameters())
     loss_fun = nn.MSELoss()
-    new_games = []
+    games = []
     for epoch in range(EPOCHS):
-        new_games = new_games[:min(MAX_TRAIN_GAMES, len(new_games))]
-        chessUtils.printProgressBar(0, GAMES, "Playing games", suffix = 'Complete', length = 20)
-        for game in range(GAMES):
-            with torch.no_grad():
-                game1 = chessMaster.chessMaster(PLAYER,PLAYER, log=False).board
-                game2 = chessMaster.chessMaster(PLAYER,PLAYER, log=False).board
-                new_games.insert(0, game1)
-                new_games.insert(0, game2)
-                chessUtils.printProgressBar(game + 1, GAMES, "Playing games", suffix = 'Complete', length = 20)
-        matchesTensor, resultsTensor = matchesToTensor(new_games)
+        new_games = chessMaster.playMultipleGames(PLAYER, PLAYER, GAMES, workers=4, display_progress=True)
+        new_games = [game.board for game in new_games]
+        games = new_games + games
+        games = games[:min(MAX_TRAIN_GAMES, len(new_games))]
+        matchesTensor, resultsTensor = matchesToTensor(games)
         dataset = data.TensorDataset(matchesTensor, resultsTensor)
         dataloader = data.DataLoader(dataset, BATCH_SIZE, True)
         epoch_loss = 0
+        if GPU:
+            PLAYER.model.cuda()
         for i, (inputs, labels) in enumerate(dataloader):
-            if PLAYER.gpu:
+            if GPU:
                 inputs, labels = inputs.cuda(), labels.cuda()
-            preds = PLAYER.model(inputs)
+            preds = PLAYER.model(inputs).view(-1)
             loss = loss_fun(preds, labels)
             epoch_loss += loss.item()
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
             print("\rEpoch {} [{}/{}] - Loss {}".format(epoch, i, len(dataloader), loss.item()),end="")
+        PLAYER.model.cpu()
         torch.save(PLAYER.model, "bad_neural_net.pt")
         print("\rEpoch {} - Loss {}".format(epoch, epoch_loss))

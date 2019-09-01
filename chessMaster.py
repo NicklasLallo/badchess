@@ -12,6 +12,7 @@ from ast import literal_eval as make_tuple
 import neural
 import multiprocessing
 from queue import Empty as EmptyException
+import signal
 
 class chessMaster:
 
@@ -78,9 +79,12 @@ class chessMaster:
         else:
             return (0,1,0)
 
-def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False):
+def init_worker():
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    with multiprocessing.Pool(processes=workers) as pool:
+def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False):
+    pool = multiprocessing.Pool(workers, init_worker)
+    try:
         processes = [pool.apply_async(chessMaster, (agentA, agentB, chessVariant)) for _ in range(num_games)]
         if display_progress:
             prefix = "Playing "+str(num_games)+" games: "
@@ -90,6 +94,14 @@ def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standa
             games.append(process.get())
             if display_progress:
                 chessUtils.printProgressBar(i+1, num_games, prefix, suffix = 'Complete', length = 20)
+    except KeyboardInterrupt:
+        pool.close()
+        pool.terminate()
+        pool.join()
+        raise KeyboardInterrupt
+    else:
+        pool.close()
+        pool.join()
     return games
 
 def sampleGames(agentA, agentB, chessVariant='Standard', workers=2):
@@ -141,7 +153,7 @@ if __name__ == "__main__":
     bot2 = simple.lowRankBot()
     bot3 = minimax.naiveMinimaxBot()
 
-    nbot1 = neural.NeuralBot(model="bad_neural_net.pt", gpu=True)
+    nbot1 = neural.NeuralBoardValueBot(model="bad_neural_net.pt", gpu=True)
 
 
     game = chessMaster(bot1, nbot1)
