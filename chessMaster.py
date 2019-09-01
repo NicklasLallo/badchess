@@ -153,7 +153,7 @@ if __name__ == "__main__":
     bot2 = simple.lowRankBot()
     bot3 = minimax.naiveMinimaxBot()
 
-    nbot1 = neural.NeuralBot(model="bad_neural_net.pt", gpu=True)
+    nbot1 = neural.NeuralBoardValueBot(model="bad_neural_net.pt", gpu=True)
 
 
     game = chessMaster(bot1, nbot1)
