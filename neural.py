@@ -100,13 +100,16 @@ class NeuralBoardValueBot(NeuralBot):
 
 class NeuralMoveCategorizerBot(NeuralBot):
     def __init__(self, model=None, gpu=False):
-        super().__init__(model, gpu, None) #TODO: Change 'None' for #pieces+#move_categories 
+        super().__init__(model, gpu, 18) #18 is 9 piece categories and 9 move categories
     
     def makeMove(self, board, moves):
+        # moves = None
         boardTensor = boardstateToTensor(board).unsqueeze()
         pieces_and_move_types = self.model(boardTensor)
-        #TODO: extract network output and 
-        return None
+        pieces = pieces_and_move_types.numpy()[0,8]
+        moves = pieces_and_move_types.numpy()[8,17]
+        selectedMoves = pickMoveFromCategory(pieces, moves, board)
+        return selectedMoves
 
     def evalPos(self, board):
         return 0.5
@@ -182,10 +185,11 @@ def pickMoveFromCategory(pieceList, moveList, board):
     moveArray = np.multiply(pieceList, moveList)
     bestMove = lambda moveArray : numpy.unravel_index(indices=numpy.argmax(moveArray), shape=moveArray.shape())
 
-    movePossible = checkIfMove(bestMove(moveArray), board)
+    selectedMoves, movePossible = checkIfMove(bestMove(moveArray), board)
     while(not movePossible):
         moveArray[bestMove[0], bestMove[1]] = 0
-        movePossible = checkIfMove(bestMove(moveArray), board)
+        selectedMoves, movePossible = checkIfMove(bestMove(moveArray), board)
+    return selectedMoves
 
 def checkIfMove(move, board):
     # pieces:
@@ -269,10 +273,10 @@ def checkIfMove(move, board):
     moves = [move for move in moves if moveMatch(move)]
 
     if len(moves) == 0:
-        return False
+        return (_, False)
     else:
-        board.push(random.choice(moves))
-        return True
+        # board.push(random.choice(moves))
+        return (moves.shuffle(), True)
 
 if __name__ == "__main__":
     LOAD_FILE = "bad_neural_net.pt" # None #"bad_neural_net.pt"
