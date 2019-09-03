@@ -22,25 +22,32 @@ def boardstateToTensor(board):
             boardstateTensor[square+1] = piece
     return boardstateTensor
 
-def matchesToTensor(boards):
+def whiteWinnerLabeller(board, outcome):
+    if outcome == "0-1":
+        outcome = 0.0
+    elif outcome == "1-0":
+        outcome = 1.0
+    else:
+        outcome = 0.5
+    return [outcome]
+
+def matchesToTensor(boards, label_fun, out_size):
     '''
-    Takes a list of Board and returns a Tensor of all boardstates and a Tensor with results
+    Takes a list of Board and returns a Tensor of all boardstates and a Tensor with labels
+    label_fun takes a board and the outcome of the game and returns a label for that board
+    The label is a list of expected outputs for the neurons of the final layer
+    out_size is the size of the label
     '''
     num_boardstates = sum([len(board.move_stack) for board in boards])
     boardstatesTensor = torch.zeros([num_boardstates, 65])
-    resultsTensor = torch.zeros([num_boardstates])
+    resultsTensor = torch.zeros([num_boardstates, out_size])
     current_board = 0
     for i, board in enumerate(boards):
-        r = board.result()
-        if r == "0-1":
-            r = 0.0
-        elif r == "1-0":
-            r = 1.0
-        else:
-            r = 0.5
+        board = board.copy()
+        outcome = board.result()
         while len(board.move_stack) > 0:
             boardstatesTensor[current_board,:] = boardstateToTensor(board)
-            resultsTensor[current_board] = r
+            resultsTensor[current_board, :] = torch.Tensor(label_fun(board, outcome))
             current_board += 1
             board.pop()
     return boardstatesTensor, resultsTensor
@@ -89,13 +96,16 @@ class NeuralBoardValueBot(NeuralBot):
             b = board.copy(stack=False)
             b.push(move)
             boards.append(b)
-        boardsTensor, _ = matchesToTensor(boards)
+        boardsTensor, _ = matchesToTensor(boards, whiteWinnerLabeller, 1)
         if self.gpu:
             boardsTensor = boardsTensor.cuda()
         value = self.model(boardsTensor).view(-1)
         if not board.turn: # add Not to attempt to win instead of lose
             value = 1-value
-        index = value.argmax().item()
+        print(value)
+        torch.seed() #torch.manual_seed(torch.Generator().seed())
+        index = torch.multinomial(value, 1).item()
+        print(index)
         return [moves[index]]
 
 class NeuralMoveCategorizerBot(NeuralBot):
@@ -111,8 +121,9 @@ class NeuralMoveCategorizerBot(NeuralBot):
     def evalPos(self, board):
         return 0.5
 
-def labelMove(board, move):
-    pieceFile = board.square_file(move.from_square)
+def labelMove(board):
+    move = board.pop()
+    pieceFile = chess.square_file(move.from_square)
     pieceType = board.piece_type_at(move.from_square)
     if pieceType == 3:
         piece = 0
@@ -151,15 +162,16 @@ def labelMove(board, move):
         moves[3] = 1
     if checking(board, move):
         moves[4] = 1
-    if board.square_rank(move.from_square) < chess.square_rank(move.to_square): # forward move:
+    if chess.square_rank(move.from_square) < chess.square_rank(move.to_square): # forward move:
         moves[5] = 1
-    if board.square_rank(move.from_square) > chess.square_rank(move.to_square):
+    if chess.square_rank(move.from_square) > chess.square_rank(move.to_square):
         moves[6] = 1
-    if board.square_file(move.from_square) > chess.square_file(move.to_square):
+    if chess.square_file(move.from_square) > chess.square_file(move.to_square):
         moves[7] = 1
-    if board.square_file(move.from_square) < chess.square_file(move.to_square):
+    if chess.square_file(move.from_square) < chess.square_file(move.to_square):
         moves[8] = 1
 
+    board.push(move)
     return pieces+moves
 
 def pickMoveFromCategory(pieceList, moveList, board):
@@ -278,7 +290,7 @@ if __name__ == "__main__":
     LOAD_FILE = "bad_neural_net.pt" # None #"bad_neural_net.pt"
 
     EPOCHS = 100
-    GAMES = 100
+    GAMES = 10
     BATCH_SIZE = 1000
     PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=False)
     GPU = torch.cuda.is_available()
@@ -289,11 +301,17 @@ if __name__ == "__main__":
     loss_fun = nn.MSELoss()
     games = []
     for epoch in range(EPOCHS):
-        new_games = chessMaster.playMultipleGames(PLAYER, PLAYER, GAMES, workers=4, display_progress=True)
+        new_games = chessMaster.playMultipleGames(PLAYER, PLAYER, GAMES, workers=2, display_progress=True)
         new_games = [game.board for game in new_games]
+        if not new_games[0].is_game_over():
+            print("dfsdf")
+            exit()
         games = new_games + games
+        for game in games:
+            print(game, game.result(), game.is_fivefold_repetition(), len(game.move_stack), "\n\n")
+            print(labelMove(game))
         games = games[:min(MAX_TRAIN_GAMES, len(new_games))]
-        matchesTensor, resultsTensor = matchesToTensor(games)
+        matchesTensor, resultsTensor = matchesToTensor(games, whiteWinnerLabeller, 1)
         dataset = data.TensorDataset(matchesTensor, resultsTensor)
         dataloader = data.DataLoader(dataset, BATCH_SIZE, True)
         epoch_loss = 0
@@ -302,7 +320,7 @@ if __name__ == "__main__":
         for i, (inputs, labels) in enumerate(dataloader):
             if GPU:
                 inputs, labels = inputs.cuda(), labels.cuda()
-            preds = PLAYER.model(inputs).view(-1)
+            preds = PLAYER.model(inputs)
             loss = loss_fun(preds, labels)
             epoch_loss += loss.item()
             loss.backward()
