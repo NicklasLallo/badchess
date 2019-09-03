@@ -6,10 +6,11 @@ import chessUtils
 import numpy as np
 import time
 import random
-from bots.simple import chessBot
+from bots.simple import chessBot, randomBot
 from bots.minimax import suicideBot, minimax
 # from chessMaster import chessMaster
 import chessMaster
+import operator
 
 def boardstateToTensor(board):
     boardstateTensor = torch.zeros([65])
@@ -63,7 +64,8 @@ class NeuralBot(chessBot):
             self.model = nn.Sequential(
                 nn.Linear(65, 65),
                 nn.LeakyReLU(),
-                nn.Linear(65, out_size)
+                nn.Linear(65, out_size),
+                nn.Sigmoid()
             )
         elif isinstance(self.model,str):
             self.model = torch.load(model, map_location='cpu')
@@ -90,6 +92,7 @@ class NeuralBoardValueBot(NeuralBot):
         return value
 
     def makeMove(self, board, moves):
+        # print("beg")
         moves = list(moves)
         boards = []
         for move in moves:
@@ -99,32 +102,32 @@ class NeuralBoardValueBot(NeuralBot):
         boardsTensor, _ = matchesToTensor(boards, whiteWinnerLabeller, 1)
         if self.gpu:
             boardsTensor = boardsTensor.cuda()
+            # self.model.cuda()
         value = self.model(boardsTensor).view(-1)
         if not board.turn: # add Not to attempt to win instead of lose
             value = 1-value
-        print(value)
         torch.seed() #torch.manual_seed(torch.Generator().seed())
         index = torch.multinomial(value, 1).item()
-        print(index)
         return [moves[index]]
 
-class NeuralMoveCategorizerBot(NeuralBot):
+class NeuralMoveInstructionBot(NeuralBot):
     def __init__(self, model=None, gpu=False):
         super().__init__(model, gpu, 18) #18 is 9 piece categories and 9 move categories
-    
+
     def makeMove(self, board, moves):
         # moves = None
-        boardTensor = boardstateToTensor(board).unsqueeze()
+        boardTensor = boardstateToTensor(board).unsqueeze(0)
         pieces_and_move_types = self.model(boardTensor)
-        pieces = pieces_and_move_types.numpy()[0,8]
-        moves = pieces_and_move_types.numpy()[8,17]
+        pieces_and_move_types
+        pieces = pieces_and_move_types.detach().numpy()[:,0:9]
+        moves = pieces_and_move_types.detach().numpy()[:,9:18]
         selectedMoves = pickMoveFromCategory(pieces, moves, board)
         return selectedMoves
 
     def evalPos(self, board):
         return 0.5
 
-def labelMove(board):
+def labelMove(board, outcome):
     move = board.pop()
     pieceFile = chess.square_file(move.from_square)
     pieceType = board.piece_type_at(move.from_square)
@@ -194,16 +197,37 @@ def pickMoveFromCategory(pieceList, moveList, board):
     # if not movePossible:
     #     pickMoveFromCategory(pieceList[indexPiece]
 
-    moveArray = np.multiply(pieceList, moveList)
-    bestMove = lambda moveArray : numpy.unravel_index(indices=numpy.argmax(moveArray), shape=moveArray.shape())
+    # print(pieceList)
+    # print(moveList)
+    moveArray = np.multiply(pieceList.T, moveList)
+    bestMove = lambda moveArray : np.unravel_index(indices=np.argmax(moveArray), shape=moveArray.shape)
+    backupMoves = board.copy().legal_moves
+    backupBoard = str(board.copy())
+    backupPieceList = pieceList.copy()
+    backupMoveList = moveList.copy()
+    backupMatrix = moveArray.copy()
+    proposedSolution = bestMove(moveArray)
+    moveArray[proposedSolution[0]][proposedSolution[1]] = 0
 
     selectedMoves, movePossible = checkIfMove(bestMove(moveArray), board)
     while(not movePossible):
-        moveArray[bestMove[0], bestMove[1]] = 0
+        proposedSolution = bestMove(moveArray)
+        if moveArray[proposedSolution[0]][proposedSolution[1]] == 0:
+            print("stuck")
+            print(list(backupMoves))
+            print("pieceList: ", backupPieceList)
+            print("moveList: ", backupMoveList)
+            print(backupMatrix)
+            print(backupBoard)
+            for i in range(0,9):
+                for j in range(0,9):
+                    checkIfMove([i,j], board, debug=True)
+            raise ValueError("everything became zero")
+        moveArray[proposedSolution[0]][proposedSolution[1]] = 0
         selectedMoves, movePossible = checkIfMove(bestMove(moveArray), board)
     return selectedMoves
 
-def checkIfMove(move, board):
+def checkIfMove(move, board, debug=False):
     # pieces:
     # bishop
     # knight
@@ -226,96 +250,127 @@ def checkIfMove(move, board):
     # left move
     # right move
 
+    if debug:
+        print("I want to make move: ", move)
+
     # Step 1, sort moves that matches piece type
     def pieceMatch(square):
         pieceType = board.piece_type_at(square)
-        PieceRank = chess.square_rank(square)
+        pieceRank = chess.square_rank(square)
         pieceFile = chess.square_file(square)
         if move[0] == 0:
-            match = pieceMatch == 3 # Bishop
+            match = pieceType == 3 # Bishop
         elif move[0] == 1:
-            match = pieceMatch == 2 # Knight
+            match = pieceType == 2 # Knight
         elif move[0] == 2:
-            match = pieceMatch == 4 # Rook
+            match = pieceType == 4 # Rook
         elif move[0] == 3:
-            match = pieceMatch == 1 and PieceFile < 2
+            match = pieceType == 1 and pieceFile < 2
         elif move[0] == 4:
-            match = pieceMatch == 1 and 1 < PieceFile < 4
+            match = pieceType == 1 and 1 < pieceFile < 4
         elif move[0] == 5:
-            match = pieceMatch == 1 and 3 < PieceFile < 6
+            match = pieceType == 1 and 3 < pieceFile < 6
         elif move[0] == 6:
-            match = pieceMatch == 1 and 5 < PieceFile < 8
+            match = pieceType == 1 and 5 < pieceFile < 8
         elif move[0] == 7:
-            match = pieceMatch == 6
+            match = pieceType == 6
         elif move[0] == 8:
-            match = pieceMatch == 5
+            match = pieceType == 5
         else:
             print("move matrix dimension missmatch")
         return match
 
-    moves = [move for move in board.legal_moves() if pieceMatch(move.from_square)]
+    if debug:
+        for tmpMove in board.legal_moves:
+            print("filterPiece: ",  tmpMove, pieceMatch(tmpMove.from_square))
+    moves = [tempMove for tempMove in board.legal_moves if pieceMatch(tempMove.from_square)]
     # Step 2, sort moves that matches move type
-    def checking(board, move):
-        board.push(move)
-        check = board.is_check()
-        board.pop()
-        return check
+    # def checking(board, move):
+    #     board.push(move)
+    #     check = board.is_check()
+    #     board.pop()
+    #     return check
 
-    def moveMatch(move):
+    def moveMatch(candidateMove):
         if move[1] == 0:
-            match = board.is_castling(move)
+            match = board.is_castling(candidateMove)
         elif move[1] == 1:
-            match = board.is_capture(move) and chess.square_rank(move.from_square) < chess.square_rank(move.to_square) # forward capture (y-axis)
+            match = board.is_capture(candidateMove) and chess.square_rank(candidateMove.from_square) < chess.square_rank(candidateMove.to_square) # forward capture (y-axis)
         elif move[1] == 2:
-            match = board.is_capture(move) and chess.square_rank(move.from_square) > chess.square_rank(move.to_square) # backwards capture
+            match = board.is_capture(candidateMove) and chess.square_rank(candidateMove.from_square) > chess.square_rank(candidateMove.to_square) # backwards capture
         elif move[1] == 3:
-            match = board.is_capture(move) and chess.square_rank(move.from_square) == chess.square_rank(move.to_square) # horizontal capture
+            match = board.is_capture(candidateMove) and chess.square_rank(candidateMove.from_square) == chess.square_rank(candidateMove.to_square) # horizontal capture
         elif move[1] == 4:
-            match = checking(board, move)
+            match = board.is_into_check(candidateMove)
         elif move[1] == 5:
-            match = chess.square_rank(move.from_square) < chess.square_rank(move.to_square) # forward move
+            match = chess.square_rank(candidateMove.from_square) < chess.square_rank(candidateMove.to_square) # forward candidateMove
         elif move[1] == 6:
-            match = chess.square_rank(move.from_square) > chess.square_rank(move.to_square)
+            match = chess.square_rank(candidateMove.from_square) > chess.square_rank(candidateMove.to_square)
         elif move[1] == 7:
-            match = chess.square_file(move.from_square) > chess.square_file(move.to_square)
+            match = chess.square_file(candidateMove.from_square) > chess.square_file(candidateMove.to_square)
         elif move[1] == 8:
-            match = chess.square_file(move.from_square) < chess.square_file(move.to_square)
+            match = chess.square_file(candidateMove.from_square) < chess.square_file(candidateMove.to_square)
         return match
 
-    moves = [move for move in moves if moveMatch(move)]
+
+    if debug:
+        for tmpMove in board.legal_moves:
+            print("filterMove: ",  tmpMove, moveMatch(tmpMove))
+    moves = [tmpMove for tmpMove in moves if moveMatch(tmpMove)]
+    # print(len(moves))
 
     if len(moves) == 0:
-        return (_, False)
+        return (None, False)
     else:
         # board.push(random.choice(moves))
-        return (moves.shuffle(), True)
+        # print("wee")
+        if debug:
+            print(moves)
+        random.shuffle(moves)
+        return (moves, True)
 
 if __name__ == "__main__":
-    LOAD_FILE = "bad_neural_net.pt" # None #"bad_neural_net.pt"
+    LOAD_FILE = "instruction_neural_net.pt" # None #"bad_neural_net.pt"
 
     EPOCHS = 100
     GAMES = 10
+    GAMES2 = int(GAMES / 2)
     BATCH_SIZE = 1000
-    PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=False)
-    GPU = torch.cuda.is_available()
-    OPPONENT = suicideBot()
+    # PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=False)
+    PLAYER = NeuralMoveInstructionBot(gpu=False)
+    # GPU = torch.cuda.is_available()
+    GPU = False
+    OPPONENT = randomBot()
     MAX_TRAIN_GAMES = 850
 
     optimizer = torch.optim.Adam(PLAYER.model.parameters())
     loss_fun = nn.MSELoss()
     games = []
     for epoch in range(EPOCHS):
-        new_games = chessMaster.playMultipleGames(PLAYER, PLAYER, GAMES, workers=2, display_progress=True)
+        print("Playing games as white")
+        new_games = chessMaster.playSingleGames(OPPONENT, PLAYER, GAMES2, workers=2, display_progress=True, log=False)
+        gameresults = (0,0,0)
+        for g in new_games:
+            gameresults = tuple(map(operator.add, gameresults, g.winner()))
+        print("Playing games as black")
+        new_games2 = chessMaster.playSingleGames(PLAYER, OPPONENT, GAMES2, workers=2, display_progress=True, log=False)
+        for g in new_games2:
+            invertedWinner = g.winner()
+            invertedWinner = (invertedWinner[1],invertedWinner[0],invertedWinner[2])
+            gameresults = tuple(map(operator.add, gameresults, invertedWinner))
+        new_games += new_games2
+        print("results: ", gameresults)
+        # print(new_games)
         new_games = [game.board for game in new_games]
         if not new_games[0].is_game_over():
-            print("dfsdf")
             exit()
         games = new_games + games
-        for game in games:
-            print(game, game.result(), game.is_fivefold_repetition(), len(game.move_stack), "\n\n")
-            print(labelMove(game))
+        # for game in games:
+        #     # print(game, game.result(), game.is_fivefold_repetition(), len(game.move_stack), "\n\n")
+        #     # print(labelMove(game))
         games = games[:min(MAX_TRAIN_GAMES, len(new_games))]
-        matchesTensor, resultsTensor = matchesToTensor(games, whiteWinnerLabeller, 1)
+        matchesTensor, resultsTensor = matchesToTensor(games, labelMove, 18)
+        # matchesTensor, resultsTensor = matchesToTensor(games, whiteWinnerLabeller, 1)
         dataset = data.TensorDataset(matchesTensor, resultsTensor)
         dataloader = data.DataLoader(dataset, BATCH_SIZE, True)
         epoch_loss = 0
@@ -330,7 +385,7 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-            print("\rEpoch {} [{}/{}] - Loss {}".format(epoch, i, len(dataloader), loss.item()),end="")
+            # print("\rEpoch {} [{}/{}] - Loss {}".format(epoch, i, len(dataloader), loss.item()),end="")
         PLAYER.model.cpu()
-        torch.save(PLAYER.model, "bad_neural_net.pt")
-        print("\rEpoch {} - Loss {}".format(epoch, epoch_loss))
+        torch.save(PLAYER.model, LOAD_FILE)
+        print("Epoch {} - Loss {}".format(epoch, epoch_loss))

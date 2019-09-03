@@ -47,7 +47,7 @@ class chessMaster:
         if log:
             with open('previousGame.pgn', 'w') as f:
                 gamelog = chess.pgn.Game.from_board(self.board)
-                gamelog.headers["Event"] = "Bot Champtionships Alpha"
+                gamelog.headers["Event"] = "Bot Championships Alpha"
                 gamelog.headers["White"] = str(type(agentA).__name__)
                 gamelog.headers["Black"] = str(type(agentB).__name__)
                 f.write(str(gamelog))
@@ -55,7 +55,9 @@ class chessMaster:
 
     def play(self, agentA, agentB):
         active = True
+        i = 0
         while(not self.board.is_game_over()):
+            i += 1
             if active:
                 movelist = agentA.makeMove(self.board, self.board.legal_moves)
             else:
@@ -63,6 +65,10 @@ class chessMaster:
             active = not active
 
             #todo logic
+            if len(movelist) == 0:
+                print("something wrong here")
+            # elif i > 500:
+            # print("long game: ", i)
             for move in movelist:
                 if move in self.board.legal_moves:
                     self.board.push(move)
@@ -82,15 +88,25 @@ class chessMaster:
 def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False):
+def playSingleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False, log=True):
+    games = []
+    prefix = "Playing "+str(num_games)+" games: "
+    chessUtils.printProgressBar(0, num_games, prefix, suffix = 'Complete', length = 20)
+    for i in range(num_games):
+        chessUtils.printProgressBar(i+1, num_games, prefix, suffix = 'Complete', length = 20)
+        games.append(chessMaster(agentA, agentB, log, chessVariant))
+    return games
+
+def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False, log=False):
     pool = multiprocessing.Pool(workers, init_worker)
     try:
-        processes = [pool.apply_async(chessMaster, (agentA, agentB, chessVariant)) for _ in range(num_games)]
+        processes = [pool.apply_async(chessMaster, (agentA, agentB, log, chessVariant)) for _ in range(num_games)]
         if display_progress:
             prefix = "Playing "+str(num_games)+" games: "
             chessUtils.printProgressBar(0, num_games, prefix, suffix = 'Complete', length = 20)
         games = []
         for i, process in enumerate(processes):
+            # print("process ",i)
             games.append(process.get())
             if display_progress:
                 chessUtils.printProgressBar(i+1, num_games, prefix, suffix = 'Complete', length = 20)
@@ -109,6 +125,7 @@ def sampleGames(agentA, agentB, chessVariant='Standard', workers=2):
     sampleSize=10
     prefix = "Playing "+str(sampleSize)+" games: "
     games = playMultipleGames(agentA, agentB, sampleSize, workers, chessVariant, True)
+    # games = playSingleGames(agentA, agentB, sampleSize, workers, chessVariant, True)
     for game in games:
         results = tuple(map(operator.add, results, game.winner()))
     saveToJSON(agentA, agentB, resultA=results)
