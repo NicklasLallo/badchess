@@ -1,0 +1,9 @@
+[Event "Bot Champtionships Alpha"]
+[Site "?"]
+[Date "????.??.??"]
+[Round "?"]
+[White "NeuralBoardValueBot"]
+[Black "NeuralBoardValueBot"]
+[Result "1/2-1/2"]
+
+1. h4 h5 2. a3 a6 3. b3 b6 4. d3 c6 5. b4 f6 6. Nc3 e6 7. Bg5 Qe7 8. Nf3 Qd6 9. Nb1 Qd5 10. Rg1 Qe5 11. Qd2 Qc5 12. Rh1 Qd5 13. Rh3 Qe5 14. Qc3 Qd5 15. Qe5 Qc5 16. Qh2 Qe5 17. Qh1 Qc5 18. Qg1 Qe5 19. Qh2 Qc5 20. Qg3 Qe5 21. Nd4 Rh7 22. Bh6 Ne7 23. Bxg7 Bxg7 24. Nxe6 Kf7 25. Nf8 Bb7 26. Nxh7 Ra7 27. Nf8 Bh8 28. Nh7 Bg7 29. Nf8 Bh8 30. Nh7 Bg7 31. Nf8 Bh8 32. Nh7 Bg7 33. Nf8 Bh8 34. Nh7 Bg7 1/2-1/2
