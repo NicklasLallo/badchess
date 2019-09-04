@@ -224,7 +224,7 @@ def pickMoveFromCategory(pieceList, moveList, board):
                     checkIfMove([i,j], board, debug=True)
             raise ValueError("everything became zero")
         moveArray[proposedSolution[0]][proposedSolution[1]] = 0
-        selectedMoves, movePossible = checkIfMove(bestMove(moveArray), board)
+        selectedMoves, movePossible = checkIfMove(proposedSolution, board)
     return selectedMoves
 
 def checkIfMove(move, board, debug=False):
