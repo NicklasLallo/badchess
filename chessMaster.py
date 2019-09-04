@@ -120,12 +120,14 @@ def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standa
         pool.join()
     return games
 
-def sampleGames(agentA, agentB, chessVariant='Standard', workers=2):
+def sampleGames(agentA, agentB, chessVariant='Standard', workers=2, parallel=True):
     results=(0,0,0)
-    sampleSize=10
+    sampleSize=100
     prefix = "Playing "+str(sampleSize)+" games: "
-    games = playMultipleGames(agentA, agentB, sampleSize, workers, chessVariant, True)
-    # games = playSingleGames(agentA, agentB, sampleSize, workers, chessVariant, True)
+    if not parallel:
+        games = playSingleGames(agentA, agentB, sampleSize, workers, chessVariant, True)
+    else:
+        games = playMultipleGames(agentA, agentB, sampleSize, workers, chessVariant, True)
     for game in games:
         results = tuple(map(operator.add, results, game.winner()))
     saveToJSON(agentA, agentB, resultA=results)
@@ -170,17 +172,17 @@ if __name__ == "__main__":
     bot2 = simple.lowRankBot()
     bot3 = minimax.naiveMinimaxBot()
 
-    nbot1 = neural.NeuralBoardValueBot(model="bad_neural_net.pt", gpu=True)
+    nbot1 = neural.NeuralBoardValueBot(model="bad_neural_net.pt", gpu=False)
+    nbot2 = neural.NeuralMoveInstructionBot(model="instruction_neural_net.pt", gpu=False)
 
-
-    game = chessMaster(bot1, nbot1)
+    game = chessMaster(nbot2, nbot1)
     # for i in range(100000000):
     #     game = chessMaster(bot1, bot3)
     #     if game.winner() == (1,0,0):
     #         break
     #     print("\r{}".format(i), end="")
     print(game.output())
-    sampleGames(minimax.suicideBot(), bot2, workers=4)
+    sampleGames(nbot2, nbot1, workers=2, parallel=False)
     # sampleGames(minimax.arrogantBot(), simple.randomBot())
     # sampleGames(simple.randomBot(), bot3)
     # sampleGames(simple.randomBot(), bot1)
