@@ -74,7 +74,7 @@ class NeuralBot(chessBot):
 
     def evalPos(self, board):
         pass
-    def makeMove(self, board, moves):
+    def makeMove(self, board, moves, verbose):
         pass
 
 class NeuralBoardValueBot(NeuralBot):
@@ -91,7 +91,7 @@ class NeuralBoardValueBot(NeuralBot):
             value = 1-value
         return value
 
-    def makeMove(self, board, moves):
+    def makeMove(self, board, moves, verbose=False):
         # print("beg")
         moves = list(moves)
         boards = []
@@ -114,14 +114,16 @@ class NeuralMoveInstructionBot(NeuralBot):
     def __init__(self, model=None, gpu=False):
         super().__init__(model, gpu, 18) #18 is 9 piece categories and 9 move categories
 
-    def makeMove(self, board, moves):
+    def makeMove(self, board, moves, verbose):
         # moves = None
         boardTensor = boardstateToTensor(board).unsqueeze(0)
-        pieces_and_move_types = self.model(boardTensor)
-        pieces_and_move_types
-        pieces = pieces_and_move_types.detach().numpy()[:,0:9]
-        moves = pieces_and_move_types.detach().numpy()[:,9:18]
-        selectedMoves = pickMoveFromCategory(pieces, moves, board)
+        pieces_and_move_types = self.model(boardTensor).detach().numpy()
+        if not board.turn:
+            # pieces_and_move_types = [1-elem for elem in pieces_and_move_types]
+            pieces_and_move_types = np.subtract(pieces_and_move_types, 1)
+        pieces = pieces_and_move_types[:,0:9]
+        moves = pieces_and_move_types[:,9:18]
+        selectedMoves = pickMoveFromCategory(pieces, moves, board, verbose)
         return selectedMoves
 
     def evalPos(self, board):
@@ -178,9 +180,16 @@ def labelMove(board, outcome):
         moves[8] = 1
 
     board.push(move)
-    return pieces+moves
+    outputArray = pieces+moves
+    if outcome == "0-1":
+        outputArray = [elem*-1 for elem in outputArray]
+    elif outcome == "1/2-1/2":
+        outputArray = [float(elem)*0.5 for elem in outputArray]
+    # else:
+    #     outcome = 0.5
+    return outputArray
 
-def pickMoveFromCategory(pieceList, moveList, board):
+def pickMoveFromCategory(pieceList, moveList, board, verbose=False):
     # input two numpy arrays [1x9] in dimensions
     # TODO optimize with recursion instead of complete matrix multiplication
     # pieceList
@@ -214,31 +223,23 @@ def pickMoveFromCategory(pieceList, moveList, board):
         if moveArray[proposedSolution[0]][proposedSolution[1]] == 0:
             raise ValueError("everything became zero")
         selectedMoves, movePossible = checkIfMove(proposedSolution, board)
+        if verbose:
+            translateMove(proposedSolution[0], proposedSolution[1])
+            if not movePossible:
+                print("But there doesn't appear to be any such moves")
         moveArray[proposedSolution[0]][proposedSolution[1]] = 0
+    if verbose:
+        print("I settled on making one of these moves: ", str(selectedMoves))
     return selectedMoves
 
-def checkIfMove(move, board, debug=False):
-    # pieces:
-    # bishop
-    # knight
-    # rook
-    # A,B lane pawn
-    # C, D lane pawn
-    # E, F lane pawn
-    # G, H lane pawn
-    # King
-    # Queen
 
-    # move types:
-    # castling
-    # forward capture (y-axis)
-    # backwards capture
-    # horizontal capture
-    # checking move
-    # forward move
-    # backward move
-    # left move
-    # right move
+def translateMove(pieceInt, moveInt):
+    pieces = [ "bishop ", "knight ", "rook ", "A or B lane pawn ", "C or D lane pawn ", "E or F lane pawn ", "G or H lane pawn ", "King ", "Queen " ]
+    moves = [ "castling", "forward capture", "backward capture", "horizontal capture", "checking move", "forward move", "backward move", "left move", "right move"]
+    print("I would like to do an ", pieces[pieceInt], moves[moveInt])
+
+
+def checkIfMove(move, board, debug=False):
 
     if debug:
         print("I want to make move: ", move)
@@ -338,12 +339,12 @@ if __name__ == "__main__":
     games = []
     for epoch in range(EPOCHS):
         print("Playing games as white")
-        new_games = chessMaster.playSingleGames(OPPONENT, PLAYER, GAMES2, workers=2, display_progress=True, log=False)
+        new_games = chessMaster.playSingleGames(PLAYER, OPPONENT, GAMES2, workers=2, display_progress=True, log=False)
         gameresults = (0,0,0)
         for g in new_games:
             gameresults = tuple(map(operator.add, gameresults, g.winner()))
         print("Playing games as black")
-        new_games2 = chessMaster.playSingleGames(PLAYER, OPPONENT, GAMES2, workers=2, display_progress=True, log=False)
+        new_games2 = chessMaster.playSingleGames(OPPONENT, PLAYER, GAMES2, workers=2, display_progress=True, log=False)
         for g in new_games2:
             invertedWinner = g.winner()
             invertedWinner = (invertedWinner[1],invertedWinner[0],invertedWinner[2])

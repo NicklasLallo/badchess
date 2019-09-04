@@ -5,14 +5,14 @@ import time
 import random
 
 class chessBot(object):
-    def makeMove(self, board, moves):
+    def makeMove(self, board, moves, verbose):
         pass
     def evalPos(self, board):
         return random.random()
 
 class aggroBot(chessBot):
 
-    def makeMove(self, board, moves):
+    def makeMove(self, board, moves, verbose):
         zeroing  = []
         others   = []
         checks   = []
@@ -47,7 +47,7 @@ class aggroBot(chessBot):
 
 class randomBot(chessBot):
 
-    def makeMove(self, board, moves):
+    def makeMove(self, board, moves, verbose):
         moves = list(moves)
         random.shuffle(moves)
         return moves
@@ -59,7 +59,7 @@ class randomBot(chessBot):
 # Goes pawn -> knight -> bishop -> rook -> queen -> king
 class lowRankBot(chessBot):
 
-    def makeMove(self, board, moves):
+    def makeMove(self, board, moves, verbose):
         moves = list(moves)
         random.shuffle(moves)
         

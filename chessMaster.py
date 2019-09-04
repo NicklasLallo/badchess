@@ -16,7 +16,7 @@ import signal
 
 class chessMaster:
 
-    def __init__(self, agentA, agentB, log=True, chessVariant='Standard', nineSixty=False):
+    def __init__(self, agentA, agentB, log=True, chessVariant='Standard', nineSixty=False, verbose=False):
 
         if chessVariant == 'Standard':
             self.board = chess.Board(chess960=nineSixty)
@@ -43,7 +43,7 @@ class chessMaster:
         # gamelog = chess.pgn.Game()
         # gamelog.headers["Event"] = "Bot Championships Alpha"
 
-        self.play(agentA, agentB)
+        self.play(agentA, agentB, verbose)
         if log:
             with open('previousGame.pgn', 'w') as f:
                 gamelog = chess.pgn.Game.from_board(self.board)
@@ -53,15 +53,15 @@ class chessMaster:
                 f.write(str(gamelog))
                 f.close()
 
-    def play(self, agentA, agentB):
+    def play(self, agentA, agentB, verbose):
         active = True
-        i = 0
         while(not self.board.is_game_over()):
-            i += 1
+            if verbose:
+                print(str(self.board))
             if active:
-                movelist = agentA.makeMove(self.board, self.board.legal_moves)
+                movelist = agentA.makeMove(self.board, self.board.legal_moves, verbose)
             else:
-                movelist = agentB.makeMove(self.board, self.board.legal_moves)
+                movelist = agentB.makeMove(self.board, self.board.legal_moves, verbose)
             active = not active
 
             #todo logic
@@ -72,6 +72,8 @@ class chessMaster:
             for move in movelist:
                 if move in self.board.legal_moves:
                     self.board.push(move)
+                    if verbose:
+                        print("move made:", str(move))
                     break
 
     def output(self):
@@ -125,9 +127,9 @@ def sampleGames(agentA, agentB, chessVariant='Standard', workers=2, parallel=Tru
     sampleSize=100
     prefix = "Playing "+str(sampleSize)+" games: "
     if not parallel:
-        games = playSingleGames(agentA, agentB, sampleSize, workers, chessVariant, True)
+        games = playSingleGames(agentA, agentB, sampleSize, workers, chessVariant, False)
     else:
-        games = playMultipleGames(agentA, agentB, sampleSize, workers, chessVariant, True)
+        games = playMultipleGames(agentA, agentB, sampleSize, workers, chessVariant, False)
     for game in games:
         results = tuple(map(operator.add, results, game.winner()))
     saveToJSON(agentA, agentB, resultA=results)
@@ -175,14 +177,14 @@ if __name__ == "__main__":
     nbot1 = neural.NeuralBoardValueBot(model="bad_neural_net.pt", gpu=False)
     nbot2 = neural.NeuralMoveInstructionBot(model="instruction_neural_net.pt", gpu=False)
 
-    game = chessMaster(nbot2, nbot1)
+    game = chessMaster(nbot2, nbot1, verbose=True)
     # for i in range(100000000):
     #     game = chessMaster(bot1, bot3)
     #     if game.winner() == (1,0,0):
     #         break
     #     print("\r{}".format(i), end="")
     print(game.output())
-    sampleGames(nbot2, nbot1, workers=2, parallel=False)
+    sampleGames(nbot2, bot1, workers=2, parallel=False)
     # sampleGames(minimax.arrogantBot(), simple.randomBot())
     # sampleGames(simple.randomBot(), bot3)
     # sampleGames(simple.randomBot(), bot1)
