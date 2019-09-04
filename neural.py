@@ -6,7 +6,7 @@ import chessUtils
 import numpy as np
 import time
 import random
-from bots.simple import chessBot, randomBot
+from bots.simple import chessBot, randomBot, aggroBot
 from bots.minimax import suicideBot, minimax
 # from chessMaster import chessMaster
 import chessMaster
@@ -201,30 +201,20 @@ def pickMoveFromCategory(pieceList, moveList, board):
     # print(moveList)
     moveArray = np.multiply(pieceList.T, moveList)
     bestMove = lambda moveArray : np.unravel_index(indices=np.argmax(moveArray), shape=moveArray.shape)
-    backupMoves = board.copy().legal_moves
-    backupBoard = str(board.copy())
-    backupPieceList = pieceList.copy()
-    backupMoveList = moveList.copy()
-    backupMatrix = moveArray.copy()
-    proposedSolution = bestMove(moveArray)
-    moveArray[proposedSolution[0]][proposedSolution[1]] = 0
 
-    selectedMoves, movePossible = checkIfMove(bestMove(moveArray), board)
+    # backupMoves = board.copy().legal_moves
+    # backupBoard = str(board.copy())
+    # backupPieceList = pieceList.copy()
+    # backupMoveList = moveList.copy()
+    # backupMatrix = moveArray.copy()
+
+    movePossible = False
     while(not movePossible):
         proposedSolution = bestMove(moveArray)
         if moveArray[proposedSolution[0]][proposedSolution[1]] == 0:
-            print("stuck")
-            print(list(backupMoves))
-            print("pieceList: ", backupPieceList)
-            print("moveList: ", backupMoveList)
-            print(backupMatrix)
-            print(backupBoard)
-            for i in range(0,9):
-                for j in range(0,9):
-                    checkIfMove([i,j], board, debug=True)
             raise ValueError("everything became zero")
-        moveArray[proposedSolution[0]][proposedSolution[1]] = 0
         selectedMoves, movePossible = checkIfMove(proposedSolution, board)
+        moveArray[proposedSolution[0]][proposedSolution[1]] = 0
     return selectedMoves
 
 def checkIfMove(move, board, debug=False):
@@ -340,7 +330,7 @@ if __name__ == "__main__":
     PLAYER = NeuralMoveInstructionBot(gpu=False)
     # GPU = torch.cuda.is_available()
     GPU = False
-    OPPONENT = randomBot()
+    OPPONENT = aggroBot()
     MAX_TRAIN_GAMES = 850
 
     optimizer = torch.optim.Adam(PLAYER.model.parameters())
