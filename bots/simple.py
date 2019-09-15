@@ -71,3 +71,55 @@ class lowRankBot(chessBot):
     
     def evalPos(self, board):
         super().evalPos(self, board)
+
+class jaqueBot(chessBot):
+    def __init__(self):
+        self.piece_values = [0, 1, 3, 3, 5, 8, 1000]
+    
+    def makeMove(self, board, moves, verbose):
+        moves = list(moves)
+        boards = []
+        for move in moves:
+            move_piece = board.piece_type_at(move.from_square)
+            move_piece_value = self.piece_values[move_piece]
+            if board.is_capture(move):
+                freebie = not board.is_attacked_by(not board.turn, move.to_square)
+                if freebie:
+                    if verbose:
+                        print('I made move {} because I could capture without retaliation'.format(move))
+                    return [move]
+        for move in moves:
+            move_piece = board.piece_type_at(move.from_square)
+            move_piece_value = self.piece_values[move_piece]
+            if board.is_capture(move):
+                
+                if board.is_en_passant(move):
+                    eigth = -8 if board.turn else 8
+                    capture_square = move.to_square + eigth
+                    capture_piece = board.piece_type_at(capture_square)
+                else:
+                    capture_piece = board.piece_type_at(move.to_square)
+                to_value = self.piece_values[capture_piece]
+                if move_piece_value < to_value:
+                    if verbose:
+                        print('I made move {} because the piece I attacked with was worth less than the one it took'.format(move))
+                    return [move]         
+        for move in moves:
+            move_piece = board.piece_type_at(move.from_square)
+            move_piece_value = self.piece_values[move_piece]
+            if len(board.attackers(board.turn, move.to_square)) > 1 and len(board.attackers(board.turn, move.to_square)) > 0:
+                lowest_enemy_value = 1001
+                for enemy in board.attackers(not board.turn, move.to_square):
+                    if self.piece_values[board.piece_type_at(enemy)] < lowest_enemy_value:
+                        lowest_enemy_value = self.piece_values[board.piece_type_at(enemy)]
+                if lowest_enemy_value > move_piece_value:
+                    if verbose:
+                        print('I made move {} because it baits a more valuable piece to attack'.format(move))
+                    return [move]
+        random.shuffle(moves)
+        if verbose:
+            print('I randomly chose move {}'.format(moves[0]))
+        return moves
+    
+    def evalPos(self, board):
+        super().evalPos(self, board)
