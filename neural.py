@@ -7,7 +7,7 @@ import numpy as np
 import time
 import random
 from bots.simple import chessBot, randomBot, aggroBot
-from bots.minimax import suicideBot, minimax
+from bots.minimax import suicideBot, minimax, minimaxBot
 # from chessMaster import chessMaster
 import chessMaster
 import operator
@@ -44,13 +44,15 @@ def matchesToTensor(boards, label_fun, out_size):
     resultsTensor = torch.zeros([num_boardstates, out_size])
     current_board = 0
     for i, board in enumerate(boards):
+        discount = 1
         board = board.copy()
         outcome = board.result()
         while len(board.move_stack) > 0:
             boardstatesTensor[current_board,:] = boardstateToTensor(board)
-            resultsTensor[current_board, :] = torch.Tensor(label_fun(board, outcome))
+            resultsTensor[current_board, :] = torch.Tensor(label_fun(board, outcome, discount))
             current_board += 1
             board.pop()
+            discount *= 0.9
     return boardstatesTensor, resultsTensor
 
 
@@ -129,7 +131,7 @@ class NeuralMoveInstructionBot(NeuralBot):
     def evalPos(self, board):
         return 0.5
 
-def labelMove(board, outcome):
+def labelMove(board, outcome, discount):
     move = board.pop()
     pieceFile = chess.square_file(move.from_square)
     pieceType = board.piece_type_at(move.from_square)
@@ -182,11 +184,10 @@ def labelMove(board, outcome):
     board.push(move)
     outputArray = pieces+moves
     if outcome == "0-1":
-        outputArray = [elem*-1 for elem in outputArray]
+        outputArray = [1-elem for elem in outputArray]
     elif outcome == "1/2-1/2":
         outputArray = [float(elem)*0.5 for elem in outputArray]
-    # else:
-    #     outcome = 0.5
+    outputArray = [(elem-0.5)*discount+0.5 for elem in outputArray]
     return outputArray
 
 def pickMoveFromCategory(pieceList, moveList, board, verbose=False):
@@ -327,17 +328,26 @@ if __name__ == "__main__":
     GAMES = 10
     GAMES2 = int(GAMES / 2)
     BATCH_SIZE = 1000
+    GPU = True
     # PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=False)
-    PLAYER = NeuralMoveInstructionBot(gpu=False)
+    model = nm.Sequential(
+        nn.Linear(65, 48),
+        nn.LeakyReLU(),
+        nn.Linear(48, 32),
+        nn.LeakyReLU(),
+        nn.Linear(32, 18),
+        nn.Sigmoid()
+    )
+    PLAYER = NeuralMoveInstructionBot(model=model, gpu=GPU)
     # GPU = torch.cuda.is_available()
-    GPU = False
-    OPPONENT = aggroBot()
+    # OPPONENT = aggroBot()
     MAX_TRAIN_GAMES = 850
-
     optimizer = torch.optim.Adam(PLAYER.model.parameters())
     loss_fun = nn.MSELoss()
     games = []
+    opponentList = [aggroBot(), randomBot(), minimaxBot(), PLAYER]
     for epoch in range(EPOCHS):
+        OPPONENT = random.choice(opponentList)
         print("Playing games as white")
         new_games = chessMaster.playSingleGames(PLAYER, OPPONENT, GAMES2, workers=2, display_progress=True, log=False)
         gameresults = (0,0,0)
