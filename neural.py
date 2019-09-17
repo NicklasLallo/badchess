@@ -7,7 +7,7 @@ import numpy as np
 import time
 import random
 from bots.simple import chessBot, randomBot, aggroBot
-from bots.minimax import suicideBot, minimax, minimaxBot
+from bots.minimax import suicideBot, naiveMinimaxBot, minimax
 # from chessMaster import chessMaster
 import chessMaster
 import operator
@@ -70,7 +70,7 @@ class NeuralBot(chessBot):
                 nn.Sigmoid()
             )
         elif isinstance(self.model,str):
-            self.model = torch.load(model, map_location='cpu')
+            self.model = torch.load(model)
         if self.gpu:
             self.model.cuda()
 
@@ -119,7 +119,9 @@ class NeuralMoveInstructionBot(NeuralBot):
     def makeMove(self, board, moves, verbose):
         # moves = None
         boardTensor = boardstateToTensor(board).unsqueeze(0)
-        pieces_and_move_types = self.model(boardTensor).detach().numpy()
+        if self.gpu:
+            boardTensor = boardTensor.cuda()
+        pieces_and_move_types = self.model(boardTensor).detach().cpu().numpy()
         if not board.turn:
             # pieces_and_move_types = [1-elem for elem in pieces_and_move_types]
             pieces_and_move_types = np.subtract(pieces_and_move_types, 1)
@@ -325,12 +327,12 @@ if __name__ == "__main__":
     LOAD_FILE = "instruction_neural_net.pt" # None #"bad_neural_net.pt"
 
     EPOCHS = 100
-    GAMES = 10
+    GAMES = 100
     GAMES2 = int(GAMES / 2)
     BATCH_SIZE = 1000
     GPU = True
     # PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=False)
-    model = nm.Sequential(
+    model = nn.Sequential(
         nn.Linear(65, 48),
         nn.LeakyReLU(),
         nn.Linear(48, 32),
@@ -338,14 +340,15 @@ if __name__ == "__main__":
         nn.Linear(32, 18),
         nn.Sigmoid()
     )
-    PLAYER = NeuralMoveInstructionBot(model=model, gpu=GPU)
+    PLAYER = NeuralMoveInstructionBot(model=LOAD_FILE, gpu=GPU)
+    # PLAYER = NeuralMoveInstructionBot(model=model, gpu=GPU)
     # GPU = torch.cuda.is_available()
     # OPPONENT = aggroBot()
     MAX_TRAIN_GAMES = 850
     optimizer = torch.optim.Adam(PLAYER.model.parameters())
     loss_fun = nn.MSELoss()
     games = []
-    opponentList = [aggroBot(), randomBot(), minimaxBot(), PLAYER]
+    opponentList = [aggroBot(), randomBot(), naiveMinimaxBot(), PLAYER]
     for epoch in range(EPOCHS):
         OPPONENT = random.choice(opponentList)
         print("Playing games as white")
@@ -387,6 +390,6 @@ if __name__ == "__main__":
             optimizer.step()
             optimizer.zero_grad()
             # print("\rEpoch {} [{}/{}] - Loss {}".format(epoch, i, len(dataloader), loss.item()),end="")
-        PLAYER.model.cpu()
+        # PLAYER.model.cpu()
         torch.save(PLAYER.model, LOAD_FILE)
         print("Epoch {} - Loss {}".format(epoch, epoch_loss))
