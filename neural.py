@@ -335,7 +335,7 @@ def checkIfMove(move, board, debug=False):
 if __name__ == "__main__":
     LOAD_FILE = "instruction_neural_net.pt" # None #"bad_neural_net.pt"
 
-    EPOCHS = 300
+    EPOCHS = 100
     GAMES = 100
     GAMES2 = int(GAMES / 2)
     BATCH_SIZE = 1000
@@ -374,6 +374,8 @@ if __name__ == "__main__":
             gameresults = tuple(map(operator.add, gameresults, invertedWinner))
         new_games += new_games2
         print("results: ", gameresults)
+        with open('trainingLog.tsv', 'a') as f:
+            f.write("%s\t%s\t%s\n" % (str(type(PLAYER).__name__),str(type(OPPONENT).__name__),str(gameresults)))
         # print(new_games)
         new_games = [game.board for game in new_games]
         if not new_games[0].is_game_over():
