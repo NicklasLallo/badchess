@@ -185,11 +185,10 @@ def labelMove(board, outcome, discount):
 
     outputArray = pieces+moves
     # If a draw
-    elif outcome == "1/2-1/2":
+    if outcome == "1/2-1/2":
         outputArray = [float(elem)*0.5 for elem in outputArray]
-
     # If active player is white and lost
-    if outcome == "0-1" and board.turn:
+    elif outcome == "0-1" and board.turn:
         outputArray = [1-elem for elem in outputArray]
     # Or if active player is black and lost
     elif outcome == "1-0" and not board.turn:
@@ -361,6 +360,7 @@ if __name__ == "__main__":
     opponentList = [aggroBot(), randomBot(), naiveMinimaxBot(), PLAYER]
     for epoch in range(EPOCHS):
         OPPONENT = random.choice(opponentList)
+        print("Playing against", str(type(OPPONENT).__name__))
         print("Playing games as white")
         new_games = chessMaster.playSingleGames(PLAYER, OPPONENT, GAMES2, workers=2, display_progress=True, log=False)
         gameresults = (0,0,0)
