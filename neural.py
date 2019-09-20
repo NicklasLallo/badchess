@@ -183,12 +183,22 @@ def labelMove(board, outcome, discount):
     if chess.square_file(move.from_square) < chess.square_file(move.to_square):
         moves[8] = 1
 
-    board.push(move)
     outputArray = pieces+moves
-    if outcome == "0-1":
-        outputArray = [1-elem for elem in outputArray]
+    # If a draw
     elif outcome == "1/2-1/2":
         outputArray = [float(elem)*0.5 for elem in outputArray]
+
+    # If active player is white and lost
+    if outcome == "0-1" and board.turn:
+        outputArray = [1-elem for elem in outputArray]
+    # Or if active player is black and lost
+    elif outcome == "1-0" and not board.turn:
+        outputArray = [1-elem for elem in outputArray]
+    # Otherwise the player who is active won
+
+    # Push the move to reset the board again
+    board.push(move)
+    # Discount early moves to matter less than later moves
     outputArray = [(elem-0.5)*discount+0.5 for elem in outputArray]
     return outputArray
 
