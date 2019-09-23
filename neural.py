@@ -122,9 +122,9 @@ class NeuralMoveInstructionBot(NeuralBot):
         if self.gpu:
             boardTensor = boardTensor.cuda()
         pieces_and_move_types = self.model(boardTensor).detach().cpu().numpy()
-        if not board.turn:
+        #if not board.turn:
             # pieces_and_move_types = [1-elem for elem in pieces_and_move_types]
-            pieces_and_move_types = np.subtract(pieces_and_move_types, 1)
+            # pieces_and_move_types = np.subtract(pieces_and_move_types, 1)
         pieces = pieces_and_move_types[:,0:9]
         moves = pieces_and_move_types[:,9:18]
         selectedMoves = pickMoveFromCategory(pieces, moves, board, verbose)
@@ -134,6 +134,7 @@ class NeuralMoveInstructionBot(NeuralBot):
         return 0.5
 
 def labelMove(board, outcome, discount):
+    assert outcome != "1/2-1/2", "NeuralMoveInstructionBot should not be trained on draws!"
     move = board.pop()
     pieceFile = chess.square_file(move.from_square)
     pieceType = board.piece_type_at(move.from_square)
@@ -184,11 +185,8 @@ def labelMove(board, outcome, discount):
         moves[8] = 1
 
     outputArray = pieces+moves
-    # If a draw
-    if outcome == "1/2-1/2":
-        outputArray = [float(elem)*0.5 for elem in outputArray]
     # If active player is white and lost
-    elif outcome == "0-1" and board.turn:
+    if outcome == "0-1" and board.turn:
         outputArray = [1-elem for elem in outputArray]
     # Or if active player is black and lost
     elif outcome == "1-0" and not board.turn:
@@ -377,7 +375,7 @@ if __name__ == "__main__":
         with open('trainingLog.tsv', 'a') as f:
             f.write("%s\t%s\t%s\t%s\t%s\n" % (str(type(PLAYER).__name__),str(type(OPPONENT).__name__),str(gameresults[0]),str(gameresults[1]),str(gameresults[2])))
         # print(new_games)
-        new_games = [game.board for game in new_games]
+        new_games = [game.board for game in new_games if game.winner() != (0,0,1)]
         if not new_games[0].is_game_over():
             exit()
         games = new_games + games
