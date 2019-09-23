@@ -33,7 +33,8 @@ class aggroBot(chessBot):
         random.shuffle(others)
         move_types = [captures, zeroing, checks, others]
         probabilites = [0.5, 0.30, 0.15, 0.05]
-        move_types = np.random.choice(move_types,4,False,probabilites)
+        move_choice = np.random.choice([0,1,2,3],4,False,probabilites)
+        move_types = [move_types[choice] for choice in move_choice]
         return list(np.concatenate(move_types))
 
     def checking(self, board, move):
