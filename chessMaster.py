@@ -122,9 +122,8 @@ def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standa
         pool.join()
     return games
 
-def sampleGames(agentA, agentB, chessVariant='Standard', workers=2, parallel=True):
+def sampleGames(agentA, agentB, chessVariant='Standard', workers=2, parallel=True, sampleSize=100):
     results=(0,0,0)
-    sampleSize=100
     prefix = "Playing "+str(sampleSize)+" games: "
     if not parallel:
         games = playSingleGames(agentA, agentB, sampleSize, workers, chessVariant, False)
@@ -173,18 +172,19 @@ if __name__ == "__main__":
     bot1 = simple.aggroBot()
     bot2 = simple.lowRankBot()
     bot3 = minimax.naiveMinimaxBot()
+    bot4 = simple.jaqueBot()
 
     nbot1 = neural.NeuralBoardValueBot(model="bad_neural_net.pt", gpu=False)
-    nbot2 = neural.NeuralMoveInstructionBot(model="instruction_neural_net.pt", gpu=False)
+    nbot2 = neural.NeuralMoveInstructionBot(model="instruction_neural_net.pt", gpu=True)
 
-    game = chessMaster(nbot2, nbot1, verbose=True)
+    game = chessMaster(nbot2, bot0, verbose=False)
     # for i in range(100000000):
     #     game = chessMaster(bot1, bot3)
     #     if game.winner() == (1,0,0):
     #         break
     #     print("\r{}".format(i), end="")
     print(game.output())
-    sampleGames(nbot2, bot1, workers=2, parallel=False)
+    sampleGames(nbot2, bot0, workers=2, parallel=False)
     # sampleGames(minimax.arrogantBot(), simple.randomBot())
     # sampleGames(simple.randomBot(), bot3)
     # sampleGames(simple.randomBot(), bot1)
