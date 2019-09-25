@@ -32,7 +32,7 @@ def whiteWinnerLabeller(board, outcome):
         outcome = 0.5
     return [outcome]
 
-def matchesToTensor(boards, label_fun, out_size):
+def matchesToTensor(boards, label_fun, out_size, only_winner=False):
     '''
     Takes a list of Board and returns a Tensor of all boardstates and a Tensor with labels
     label_fun takes a board and the outcome of the game and returns a label for that board
@@ -48,10 +48,21 @@ def matchesToTensor(boards, label_fun, out_size):
         board = board.copy()
         outcome = board.result()
         while len(board.move_stack) > 0:
+            if only_winner:
+                # ignore draws
+                if outcome == "1/2-1/2":
+                    continue
             boardstatesTensor[current_board,:] = boardstateToTensor(board)
             resultsTensor[current_board, :] = torch.Tensor(label_fun(board, outcome, discount))
             current_board += 1
             board.pop()
+            if only_winner:
+                # top move in stack should have been the winning move
+                # so we don't need to check what side was the winning side
+                if len(board.move_stack) > 0:
+                    # don't pop if the stack had an odd size (white won)
+                    board.pop() # skip over the moves of the losing side
+                    discount *= 0.9 # make it still decay at the same speed as otherwise
             discount *= 0.9
     return boardstatesTensor, resultsTensor
 
@@ -333,7 +344,7 @@ def checkIfMove(move, board, debug=False):
 if __name__ == "__main__":
     LOAD_FILE = "instruction_neural_net.pt" # None #"bad_neural_net.pt"
 
-    EPOCHS = 1400
+    EPOCHS = 200
     GAMES = 100
     GAMES2 = int(GAMES / 2)
     BATCH_SIZE = 1000
@@ -376,14 +387,14 @@ if __name__ == "__main__":
             f.write("%s\t%s\t%s\t%s\t%s\n" % (str(type(PLAYER).__name__),str(type(OPPONENT).__name__),str(gameresults[0]),str(gameresults[1]),str(gameresults[2])))
         # print(new_games)
         new_games = [game.board for game in new_games if game.winner() != (0,0,1)]
-        if not new_games[0].is_game_over():
+        if len(new_games)>0 and not new_games[0].is_game_over():
             exit()
         games = new_games + games
         # for game in games:
         #     # print(game, game.result(), game.is_fivefold_repetition(), len(game.move_stack), "\n\n")
         #     # print(labelMove(game))
         games = games[:min(MAX_TRAIN_GAMES, len(new_games))]
-        matchesTensor, resultsTensor = matchesToTensor(games, labelMove, 18)
+        matchesTensor, resultsTensor = matchesToTensor(games, labelMove, 18, only_winner=True)
         # matchesTensor, resultsTensor = matchesToTensor(games, whiteWinnerLabeller, 1)
         dataset = data.TensorDataset(matchesTensor, resultsTensor)
         dataloader = data.DataLoader(dataset, BATCH_SIZE, True)
