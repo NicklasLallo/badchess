@@ -1,39 +1,11 @@
-Epoch 61 - Loss 0.12736118957400322
+Epoch 1041 - Loss 0.05119629576802254
+Playing against NeuralMoveInstructionBot
 Playing games as white
 Playing 50 games:  |████████████████████| 100.0% Complete
 Playing games as black
-Traceback (most recent call last):------| 34.0% Complete
-  File "neural.py", line 360, in <module>
-    new_games2 = chessMaster.playSingleGames(OPPONENT, PLAYER, GAMES2, workers=2, display_progress=True, log=False)
-  File "/home/combitech/Documents/tmp/badchess/chessMaster.py", line 99, in playSingleGames
-    games.append(chessMaster(agentA, agentB, log, chessVariant))
-  File "/home/combitech/Documents/tmp/badchess/chessMaster.py", line 46, in __init__
-    self.play(agentA, agentB, verbose)
-  File "/home/combitech/Documents/tmp/badchess/chessMaster.py", line 62, in play
-    movelist = agentA.makeMove(self.board, self.board.legal_moves, verbose)
-  File "/home/combitech/Documents/tmp/badchess/bots/simple.py", line 36, in makeMove
-    move_types = np.random.choice(move_types,4,False,probabilites)
-  File "mtrand.pyx", line 769, in numpy.random.mtrand.RandomState.choice
-ValueError: a must be 1-dimensional
-
-
-# Later:
-
-Epoch 125 - Loss 0.10947126755490899
-Playing against aggroBot
-Playing games as white
 Playing 50 games:  |████████████████████| 100.0% Complete
-Playing games as black
-Traceback (most recent call last):------| 26.0% Complete
-  File "neural.py", line 370, in <module>
-    new_games2 = chessMaster.playSingleGames(OPPONENT, PLAYER, GAMES2, workers=2, display_progress=True, log=False)
-  File "/home/combitech/Documents/tmp/badchess/chessMaster.py", line 99, in playSingleGames
-    games.append(chessMaster(agentA, agentB, log, chessVariant))
-  File "/home/combitech/Documents/tmp/badchess/chessMaster.py", line 46, in __init__
-    self.play(agentA, agentB, verbose)
-  File "/home/combitech/Documents/tmp/badchess/chessMaster.py", line 62, in play
-    movelist = agentA.makeMove(self.board, self.board.legal_moves, verbose)
-  File "/home/combitech/Documents/tmp/badchess/bots/simple.py", line 36, in makeMove
-    move_types = np.random.choice(move_types,4,False,probabilites)
-  File "mtrand.pyx", line 769, in numpy.random.mtrand.RandomState.choice
-ValueError: a must be 1-dimensional
+results:  (0, 0, 100)
+Traceback (most recent call last):
+  File "neural.py", line 379, in <module>
+    if not new_games[0].is_game_over():
+IndexError: list index out of range 

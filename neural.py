@@ -333,7 +333,7 @@ def checkIfMove(move, board, debug=False):
 if __name__ == "__main__":
     LOAD_FILE = "instruction_neural_net.pt" # None #"bad_neural_net.pt"
 
-    EPOCHS = 200
+    EPOCHS = 1400
     GAMES = 100
     GAMES2 = int(GAMES / 2)
     BATCH_SIZE = 1000
