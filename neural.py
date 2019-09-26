@@ -23,7 +23,7 @@ def boardstateToTensor(board):
             boardstateTensor[square+1] = piece
     return boardstateTensor
 
-def whiteWinnerLabeller(board, outcome):
+def whiteWinnerLabeller(board, outcome, discount):
     if outcome == "0-1":
         outcome = 0.0
     elif outcome == "1-0":
@@ -75,9 +75,11 @@ class NeuralBot(chessBot):
         self.gpu = gpu
         if self.model is None:
             self.model = nn.Sequential(
-                nn.Linear(65, 65),
+                nn.Linear(65, 48),
                 nn.LeakyReLU(),
-                nn.Linear(65, out_size),
+                nn.Linear(48, 32),
+                nn.LeakyReLU(),
+                nn.Linear(32, 1),
                 nn.Sigmoid()
             )
         elif isinstance(self.model,str):
@@ -116,11 +118,11 @@ class NeuralBoardValueBot(NeuralBot):
         if self.gpu:
             boardsTensor = boardsTensor.cuda()
             # self.model.cuda()
-        value = self.model(boardsTensor).view(-1)
+        value = torch.softmax(self.model(boardsTensor).view(-1), 0)
         if not board.turn: # add Not to attempt to win instead of lose
             value = 1-value
         torch.seed() #torch.manual_seed(torch.Generator().seed())
-        index = torch.multinomial(value, 1).item()
+        index = torch.multinomial(value+1e-8, 1).item()
         return [moves[index]]
 
 class NeuralMoveInstructionBot(NeuralBot):
@@ -342,8 +344,6 @@ def checkIfMove(move, board, debug=False):
         return (moves, True)
 
 if __name__ == "__main__":
-    LOAD_FILE = "instruction_neural_net.pt" # None #"bad_neural_net.pt"
-
     EPOCHS = 200
     GAMES = 100
     GAMES2 = int(GAMES / 2)
@@ -358,15 +358,16 @@ if __name__ == "__main__":
         nn.Linear(32, 18),
         nn.Sigmoid()
     )
-    PLAYER = NeuralMoveInstructionBot(model=LOAD_FILE, gpu=GPU)
-    # PLAYER = NeuralMoveInstructionBot(model=model, gpu=GPU)
+    # LOAD_FILE = "instruction_neural_net.pt"; PLAYER = NeuralMoveInstructionBot(model=LOAD_FILE, gpu=GPU); LABELLER = labelMove; OUT_SIZE=18; ONLY_WINNER=True
+    LOAD_FILE = "not_as_bad_neural_net.pt"; PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=GPU); LABELLER = whiteWinnerLabeller; OUT_SIZE=1; ONLY_WINNER=False
     # GPU = torch.cuda.is_available()
     # OPPONENT = aggroBot()
     MAX_TRAIN_GAMES = 850
     optimizer = torch.optim.Adam(PLAYER.model.parameters())
     loss_fun = nn.MSELoss()
     games = []
-    opponentList = [aggroBot(), randomBot(), naiveMinimaxBot(), PLAYER]
+    # opponentList = [aggroBot(), randomBot(), naiveMinimaxBot(), PLAYER]
+    opponentList = [randomBot()]
     for epoch in range(EPOCHS):
         OPPONENT = random.choice(opponentList)
         print("Playing against", str(type(OPPONENT).__name__))
@@ -394,7 +395,7 @@ if __name__ == "__main__":
         #     # print(game, game.result(), game.is_fivefold_repetition(), len(game.move_stack), "\n\n")
         #     # print(labelMove(game))
         games = games[:min(MAX_TRAIN_GAMES, len(new_games))]
-        matchesTensor, resultsTensor = matchesToTensor(games, labelMove, 18, only_winner=True)
+        matchesTensor, resultsTensor = matchesToTensor(games, LABELLER, OUT_SIZE, only_winner=ONLY_WINNER)
         # matchesTensor, resultsTensor = matchesToTensor(games, whiteWinnerLabeller, 1)
         dataset = data.TensorDataset(matchesTensor, resultsTensor)
         dataloader = data.DataLoader(dataset, BATCH_SIZE, True)
@@ -413,4 +414,4 @@ if __name__ == "__main__":
             # print("\rEpoch {} [{}/{}] - Loss {}".format(epoch, i, len(dataloader), loss.item()),end="")
         # PLAYER.model.cpu()
         torch.save(PLAYER.model, LOAD_FILE)
-        print("Epoch {} - Loss {}".format(epoch, epoch_loss))
+        print("Epoch {} - Loss {}".format(epoch, epoch_loss/(i+1)))
