@@ -121,7 +121,7 @@ class NeuralBoardValueBot(NeuralBot):
         value = torch.softmax(self.model(boardsTensor).view(-1), 0)
         if not board.turn: # add Not to attempt to win instead of lose
             value = 1-value
-        torch.seed() #torch.manual_seed(torch.Generator().seed())
+        # torch.seed() #torch.manual_seed(torch.Generator().seed())
         index = torch.multinomial(value+1e-8, 1).item()
         return [moves[index]]
 
@@ -344,7 +344,7 @@ def checkIfMove(move, board, debug=False):
         return (moves, True)
 
 if __name__ == "__main__":
-    EPOCHS = 200
+    EPOCHS = 2000000 # kill manually
     GAMES = 100
     GAMES2 = int(GAMES / 2)
     BATCH_SIZE = 1000
