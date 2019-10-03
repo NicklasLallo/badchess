@@ -12,7 +12,7 @@ class stockfish(chessBot):
     def __init__(self, time=0.100, depth=None):
         self.engine = chess.engine.SimpleEngine.popen_uci("/usr/local/bin/stockfish")
         self.time = time
-        selfdepth=depth
+        self.depth=depth
         # self.engine = await chess.engine.SimpleEngine.popen_uci("/usr/local/bin/stockfish")
         # asyncio.set_event_loop_policy(chess.engine.EventLoopPolicy())
 
