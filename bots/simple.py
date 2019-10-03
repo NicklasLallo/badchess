@@ -63,20 +63,20 @@ class lowRankBot(chessBot):
     def makeMove(self, board, moves, verbose):
         moves = list(moves)
         random.shuffle(moves)
-        
+
         def pieceTypeOfMove(move):
             return board.piece_at(move.from_square).piece_type
         moves.sort(key = pieceTypeOfMove)
 
         return moves
-    
+
     def evalPos(self, board):
         super().evalPos(self, board)
 
 class jaqueBot(chessBot):
     def __init__(self):
         self.piece_values = [0, 1, 3, 3, 5, 8, 1000]
-    
+
     def makeMove(self, board, moves, verbose):
         moves = list(moves)
         boards = []
@@ -93,7 +93,7 @@ class jaqueBot(chessBot):
             move_piece = board.piece_type_at(move.from_square)
             move_piece_value = self.piece_values[move_piece]
             if board.is_capture(move):
-                
+
                 if board.is_en_passant(move):
                     eigth = -8 if board.turn else 8
                     capture_square = move.to_square + eigth
@@ -104,7 +104,7 @@ class jaqueBot(chessBot):
                 if move_piece_value < to_value:
                     if verbose:
                         print('I made move {} because the piece I attacked with was worth less than the one it took'.format(move))
-                    return [move]         
+                    return [move]
         for move in moves:
             move_piece = board.piece_type_at(move.from_square)
             move_piece_value = self.piece_values[move_piece]
@@ -121,6 +121,6 @@ class jaqueBot(chessBot):
         if verbose:
             print('I randomly chose move {}'.format(moves[0]))
         return moves
-    
+
     def evalPos(self, board):
         super().evalPos(self, board)
