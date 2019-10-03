@@ -345,7 +345,7 @@ def checkIfMove(move, board, debug=False):
         return (moves, True)
 
 if __name__ == "__main__":
-    EPOCHS = 100 # kill manually
+    EPOCHS = 300
     GAMES = 100
     GAMES2 = int(GAMES / 2)
     BATCH_SIZE = 1000
