@@ -75,12 +75,17 @@ class NeuralBot(chessBot):
         self.model = model
         self.gpu = gpu
         if self.model is None:
+            # Default model
             self.model = nn.Sequential(
-                nn.Linear(65, 48),
+                nn.Linear(65, 256),
                 nn.LeakyReLU(),
-                nn.Linear(48, 32),
+                nn.Linear(256, 128),
                 nn.LeakyReLU(),
-                nn.Linear(32, 1),
+                nn.Linear(128, 64),
+                nn.LeakyReLU(),
+                nn.Linear(64, 64),
+                nn.LeakyReLU(),
+                nn.Linear(64, out_size),
                 nn.Sigmoid()
             )
         elif isinstance(self.model,str):
