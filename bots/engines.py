@@ -9,9 +9,10 @@ from bots.simple import chessBot
 
 
 class stockfish(chessBot):
-    def __init__(self, time=0.100):
+    def __init__(self, time=0.100, depth=None):
         self.engine = chess.engine.SimpleEngine.popen_uci("/usr/local/bin/stockfish")
         self.time = time
+        selfdepth=depth
         # self.engine = await chess.engine.SimpleEngine.popen_uci("/usr/local/bin/stockfish")
         # asyncio.set_event_loop_policy(chess.engine.EventLoopPolicy())
 
@@ -19,7 +20,7 @@ class stockfish(chessBot):
         self.engine.quit()
 
     def makeMove(self, board, moves, verbose):
-        result = self.engine.play(board, chess.engine.Limit(time=self.time))
+        result = self.engine.play(board, chess.engine.Limit(time=self.time, depth=self.depth))
         # board.push(result.move)
         return [result.move]
 
