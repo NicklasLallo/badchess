@@ -8,6 +8,7 @@ import time
 import random
 from bots.simple import chessBot, randomBot, aggroBot
 from bots.minimax import suicideBot, naiveMinimaxBot, minimax
+from bots.engines import stockfish
 # from chessMaster import chessMaster
 import chessMaster
 import operator
@@ -344,7 +345,7 @@ def checkIfMove(move, board, debug=False):
         return (moves, True)
 
 if __name__ == "__main__":
-    EPOCHS = 2000000 # kill manually
+    EPOCHS = 100 # kill manually
     GAMES = 100
     GAMES2 = int(GAMES / 2)
     BATCH_SIZE = 1000
@@ -367,7 +368,8 @@ if __name__ == "__main__":
     loss_fun = nn.MSELoss()
     games = []
     # opponentList = [aggroBot(), randomBot(), naiveMinimaxBot(), PLAYER]
-    opponentList = [randomBot()]
+    opponent = stockfish(time=0.001)
+    opponentList = [opponent]
     for epoch in range(EPOCHS):
         OPPONENT = random.choice(opponentList)
         print("Playing against", str(type(OPPONENT).__name__))
@@ -415,3 +417,5 @@ if __name__ == "__main__":
         # PLAYER.model.cpu()
         torch.save(PLAYER.model, LOAD_FILE)
         print("Epoch {} - Loss {}".format(epoch, epoch_loss/(i+1)))
+    print("stopping stockfish")
+    opponent.quit()
