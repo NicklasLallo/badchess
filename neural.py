@@ -385,7 +385,7 @@ if __name__ == "__main__":
         new_games += new_games2
         print("results: ", gameresults)
         with open('trainingLog.tsv', 'a') as f:
-            f.write("%s\t%s\t%s\t%s\t%s\n" % (str(type(PLAYER).__name__),str(type(OPPONENT).__name__),str(gameresults[0]),str(gameresults[1]),str(gameresults[2])))
+            f.write("%s\t%s\t%s\t%s\t%s" % (str(type(PLAYER).__name__),str(type(OPPONENT).__name__),str(gameresults[0]),str(gameresults[1]),str(gameresults[2])))
         # print(new_games)
         new_games = [game.board for game in new_games if game.winner() != (0,0,1)]
         if len(new_games)>0 and not new_games[0].is_game_over():
@@ -415,3 +415,5 @@ if __name__ == "__main__":
         # PLAYER.model.cpu()
         torch.save(PLAYER.model, LOAD_FILE)
         print("Epoch {} - Loss {}".format(epoch, epoch_loss/(i+1)))
+        with open('trainingLog.tsv', 'a') as f:
+            f.write("\t%s\n" % (str(epoch_loss/(i+1))))
