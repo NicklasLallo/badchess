@@ -18,6 +18,7 @@ class stockfish(chessBot):
 
     def quit(self):
         self.engine.quit()
+        del self
 
     def makeMove(self, board, moves, verbose):
         result = self.engine.play(board, chess.engine.Limit(time=self.time, depth=self.depth))
