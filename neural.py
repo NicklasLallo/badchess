@@ -74,6 +74,7 @@ class NeuralBot(chessBot):
         self.model = model
         self.gpu = gpu
         if self.model is None:
+            # Default model
             self.model = nn.Sequential(
                 nn.Linear(65, 256),
                 nn.LeakyReLU(),
