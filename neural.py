@@ -84,7 +84,7 @@ class NeuralBot(chessBot):
                 nn.LeakyReLU(),
                 nn.Linear(64, 64),
                 nn.LeakyReLU(),
-                nn.Linear(64, 1),
+                nn.Linear(64, out_size),
                 nn.Sigmoid()
             )
         elif isinstance(self.model,str):
