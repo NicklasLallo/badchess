@@ -24,7 +24,7 @@ def boardstateToTensor(board):
             boardstateTensor[square+1] = piece
     return boardstateTensor
 
-def whiteWinnerLabeller(board, outcome, discount):
+def whiteWinnerLabeller(board, outcome, discount, stockfish=None):
     if outcome == "0-1":
         outcome = 0.0
     elif outcome == "1-0":
@@ -33,12 +33,15 @@ def whiteWinnerLabeller(board, outcome, discount):
         outcome = 0.5
     return [outcome]
 
-def matchesToTensor(boards, label_fun, out_size, only_winner=False):
+def matchesToTensor(boards, label_fun, out_size, only_winner=False, stockfish=None):
     '''
     Takes a list of Board and returns a Tensor of all boardstates and a Tensor with labels
     label_fun takes a board and the outcome of the game and returns a label for that board
     The label is a list of expected outputs for the neurons of the final layer
     out_size is the size of the label
+
+    The outputs can also be labeled by the stockfish engine instead of the game output if one is provided.
+    Technically any bot that has .evalPos() implemented should be useable to labeling
     '''
     num_boardstates = sum([len(board.move_stack) for board in boards])
     boardstatesTensor = torch.zeros([num_boardstates, 65])
@@ -54,7 +57,7 @@ def matchesToTensor(boards, label_fun, out_size, only_winner=False):
                 if outcome == "1/2-1/2":
                     continue
             boardstatesTensor[current_board,:] = boardstateToTensor(board)
-            resultsTensor[current_board, :] = torch.Tensor(label_fun(board, outcome, discount))
+            resultsTensor[current_board, :] = torch.Tensor(label_fun(board, outcome, discount, stockfish))
             current_board += 1
             board.pop()
             if only_winner:
@@ -460,7 +463,7 @@ if __name__ == "__main__":
         nn.Sigmoid()
     )
     # LOAD_FILE = "instruction_neural_net_extralarge.pt"; PLAYER = NeuralMoveInstructionBot(model=LOAD_FILE, gpu=GPU); LABELLER = instructionLabel18; OUT_SIZE=18; ONLY_WINNER=True
-    LOAD_FILE = "instruction_neural_net_v2_extralarge.pt"; PLAYER = NeuralMoveInstructionBotv2(model=None, gpu=GPU); LABELLER = instructionLabel81; OUT_SIZE=81; ONLY_WINNER=True
+    LOAD_FILE = "instruction_neural_net_v2_extralarge.pt"; PLAYER = NeuralMoveInstructionBotv2(model=None, gpu=GPU); LABELLER = instructionLabel81; OUT_SIZE=81; ONLY_WINNER=False
     # LOAD_FILE = "not_as_bad_neural_net_large.pt"; PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=GPU); LABELLER = whiteWinnerLabeller; OUT_SIZE=1; ONLY_WINNER=False
     # GPU = torch.cuda.is_available()
     # OPPONENT = aggroBot()
@@ -469,9 +472,9 @@ if __name__ == "__main__":
     loss_fun = nn.MSELoss()
     games = []
     # opponentList = [aggroBot(), randomBot(), naiveMinimaxBot(), PLAYER]
-    opponent = stockfish(time=0.001)
+    STOCKFISH = stockfish(time=0.001)
     # opponentList = [opponent, PLAYER]
-    opponentList = [opponent]
+    opponentList = [STOCKFISH]
     for epoch in range(EPOCHS):
         OPPONENT = random.choice(opponentList)
         print("Playing against", str(type(OPPONENT).__name__))
@@ -505,7 +508,7 @@ if __name__ == "__main__":
             with open('trainingLog.tsv', 'a') as f:
                 f.write("\t\n")
             continue
-        matchesTensor, resultsTensor = matchesToTensor(games, LABELLER, OUT_SIZE, only_winner=ONLY_WINNER)
+        matchesTensor, resultsTensor = matchesToTensor(games, LABELLER, OUT_SIZE, only_winner=ONLY_WINNER, stockfish=STOCKFISH)
         # matchesTensor, resultsTensor = matchesToTensor(games, whiteWinnerLabeller, 1)
         dataset = data.TensorDataset(matchesTensor, resultsTensor)
         dataloader = data.DataLoader(dataset, BATCH_SIZE, True)
