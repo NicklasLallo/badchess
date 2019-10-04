@@ -25,12 +25,15 @@ def boardstateToTensor(board):
     return boardstateTensor
 
 def whiteWinnerLabeller(board, outcome, discount, stockfish=None):
-    if outcome == "0-1":
-        outcome = 0.0
-    elif outcome == "1-0":
-        outcome = 1.0
-    else:
-        outcome = 0.5
+    if not stockfish:
+        if outcome == "0-1":
+            outcome = 0.0
+        elif outcome == "1-0":
+            outcome = 1.0
+        else:
+            outcome = 0.5
+    else: # if stockfish!
+        outcome = float(stockfish.evalPos(board))
     return [outcome]
 
 def matchesToTensor(boards, label_fun, out_size, only_winner=False, stockfish=None):
