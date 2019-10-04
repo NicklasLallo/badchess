@@ -13,6 +13,7 @@ import neural
 import multiprocessing
 from queue import Empty as EmptyException
 import signal
+import pickle
 
 class chessMaster:
 
@@ -90,16 +91,27 @@ class chessMaster:
 def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-def playSingleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False, log=True):
+def zaveGamez( boards, file_name):
+    pickle.dump(boards, open(file_name, 'wb'))
+
+def zloadGamez( boards, file_name):
+    return pickle.load(open(file_name, 'rb'))
+
+def playSingleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False, log=True, save=False):
     games = []
     prefix = "Playing "+str(num_games)+" games: "
     chessUtils.printProgressBar(0, num_games, prefix, suffix = 'Complete', length = 20)
-    for i in range(num_games):
-        chessUtils.printProgressBar(i+1, num_games, prefix, suffix = 'Complete', length = 20)
-        games.append(chessMaster(agentA, agentB, log, chessVariant))
+    try:
+        for i in range(num_games):
+            chessUtils.printProgressBar(i+1, num_games, prefix, suffix = 'Complete', length = 20)
+            games.append(chessMaster(agentA, agentB, log, chessVariant))
+    except KeyboardInterrupt:
+        pass
+    if save:
+        zaveGamez(games, 'games.pickle')
     return games
 
-def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False, log=False):
+def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False, log=False, save=False):
     pool = multiprocessing.Pool(workers, init_worker)
     try:
         processes = [pool.apply_async(chessMaster, (agentA, agentB, log, chessVariant)) for _ in range(num_games)]
@@ -120,6 +132,8 @@ def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standa
     else:
         pool.close()
         pool.join()
+    if save:
+        zaveGamez(games, 'games.pickle')
     return games
 
 def sampleGames(agentA, agentB, chessVariant='Standard', workers=2, parallel=True, sampleSize=100):
@@ -174,13 +188,19 @@ if __name__ == "__main__":
     bot3 = minimax.naiveMinimaxBot()
     bot4 = simple.jaqueBot()
 
-    # nbot1 = neural.NeuralBoardValueBot(model="bad_neural_net.pt", gpu=False)
-    # nbot2 = neural.NeuralMoveInstructionBot(model="instruction_neural_net.pt", gpu=True)
+    nbot1 = neural.NeuralBoardValueBot(model="bad_neural_net.pt", gpu=False)
+    nbot2 = neural.NeuralMoveInstructionBot(model="instruction_neural_net.pt", gpu=True)
+    nbvbMedium = neural.NeuralBoardValueBot(model="not_as_bad_neural_net.pt", gpu=True)
+    nbvbLarge = neural.NeuralBoardValueBot(model="not_as_bad_neural_net_large.pt", gpu=True)
+    nnibExtraLarge = neural.NeuralMoveInstructionBot(model="instruction_neural_net_extralarge.pt", gpu=True)
+
 
     ebot1 = engines.stockfish(time=0.002) # if time is to short they sometimes don't find any move
     ebot2 = engines.stochfish(time=0.002) # and instead the engine retults some form of error/random move
 
     game = chessMaster(ebot1, ebot2, verbose=False)
+    game = chessMaster(nbot2, bot0, verbose=False)
+    #game = chessMaster(nnibExtraLarge, bot0, verbose=True)
     # for i in range(100000000):
     #     game = chessMaster(bot1, bot3)
     #     if game.winner() == (1,0,0):
@@ -191,7 +211,6 @@ if __name__ == "__main__":
     sampleGames(ebot1, ebot1, workers=2, parallel=False)
     ebot1.quit()
     ebot2.quit()
-
     # sampleGames(minimax.arrogantBot(), simple.randomBot())
     # sampleGames(simple.randomBot(), bot3)
     # sampleGames(simple.randomBot(), bot1)

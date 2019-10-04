@@ -8,6 +8,7 @@ import time
 import random
 from bots.simple import chessBot, randomBot, aggroBot
 from bots.minimax import suicideBot, naiveMinimaxBot, minimax
+from bots.engines import stockfish
 # from chessMaster import chessMaster
 import chessMaster
 import operator
@@ -349,22 +350,28 @@ def checkIfMove(move, board, debug=False):
         return (moves, True)
 
 if __name__ == "__main__":
-    EPOCHS = 2000000 # kill manually
+    EPOCHS = 100
     GAMES = 100
     GAMES2 = int(GAMES / 2)
     BATCH_SIZE = 1000
     GPU = True
     # PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=False)
     model = nn.Sequential(
-        nn.Linear(65, 48),
+        nn.Linear(65, 256),
         nn.LeakyReLU(),
-        nn.Linear(48, 32),
+        nn.Linear(256, 256),
         nn.LeakyReLU(),
-        nn.Linear(32, 18),
+        nn.Linear(256, 384),
+        nn.LeakyReLU(),
+        nn.Linear(384, 256),
+        nn.LeakyReLU(),
+        nn.Linear(256, 256),
+        nn.LeakyReLU(),
+        nn.Linear(256, 18),
         nn.Sigmoid()
     )
-    # LOAD_FILE = "instruction_neural_net.pt"; PLAYER = NeuralMoveInstructionBot(model=LOAD_FILE, gpu=GPU); LABELLER = labelMove; OUT_SIZE=18; ONLY_WINNER=True
-    LOAD_FILE = "not_as_bad_neural_net.pt"; PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=GPU); LABELLER = whiteWinnerLabeller; OUT_SIZE=1; ONLY_WINNER=False
+    LOAD_FILE = "instruction_neural_net_extralarge.pt"; PLAYER = NeuralMoveInstructionBot(model=LOAD_FILE, gpu=GPU); LABELLER = labelMove; OUT_SIZE=18; ONLY_WINNER=True
+    # LOAD_FILE = "not_as_bad_neural_net_large.pt"; PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=GPU); LABELLER = whiteWinnerLabeller; OUT_SIZE=1; ONLY_WINNER=False
     # GPU = torch.cuda.is_available()
     # OPPONENT = aggroBot()
     MAX_TRAIN_GAMES = 850
@@ -372,7 +379,9 @@ if __name__ == "__main__":
     loss_fun = nn.MSELoss()
     games = []
     # opponentList = [aggroBot(), randomBot(), naiveMinimaxBot(), PLAYER]
-    opponentList = [randomBot()]
+    opponent = stockfish(time=0.001)
+    # opponentList = [opponent, PLAYER]
+    opponentList = [opponent]
     for epoch in range(EPOCHS):
         OPPONENT = random.choice(opponentList)
         print("Playing against", str(type(OPPONENT).__name__))
@@ -400,6 +409,12 @@ if __name__ == "__main__":
         #     # print(game, game.result(), game.is_fivefold_repetition(), len(game.move_stack), "\n\n")
         #     # print(labelMove(game))
         games = games[:min(MAX_TRAIN_GAMES, len(new_games))]
+        if len(games) == 0:
+            print("no games to train on")
+            print("Epoch {} - Loss NaN".format(epoch))
+            with open('trainingLog.tsv', 'a') as f:
+                f.write("\t\n")
+            continue
         matchesTensor, resultsTensor = matchesToTensor(games, LABELLER, OUT_SIZE, only_winner=ONLY_WINNER)
         # matchesTensor, resultsTensor = matchesToTensor(games, whiteWinnerLabeller, 1)
         dataset = data.TensorDataset(matchesTensor, resultsTensor)
@@ -422,3 +437,5 @@ if __name__ == "__main__":
         print("Epoch {} - Loss {}".format(epoch, epoch_loss/(i+1)))
         with open('trainingLog.tsv', 'a') as f:
             f.write("\t%s\n" % (str(epoch_loss/(i+1))))
+    print("stopping stockfish")
+    opponent.quit()
