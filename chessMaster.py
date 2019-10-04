@@ -3,7 +3,7 @@ import chess.pgn
 import numpy as np
 import time
 import random
-from bots import simple, minimax
+from bots import simple, minimax, engines
 import operator
 import chessUtils
 import json
@@ -174,17 +174,24 @@ if __name__ == "__main__":
     bot3 = minimax.naiveMinimaxBot()
     bot4 = simple.jaqueBot()
 
-    nbot1 = neural.NeuralBoardValueBot(model="bad_neural_net.pt", gpu=False)
-    nbot2 = neural.NeuralMoveInstructionBot(model="instruction_neural_net.pt", gpu=True)
+    # nbot1 = neural.NeuralBoardValueBot(model="bad_neural_net.pt", gpu=False)
+    # nbot2 = neural.NeuralMoveInstructionBot(model="instruction_neural_net.pt", gpu=True)
 
-    game = chessMaster(nbot2, bot0, verbose=False)
+    ebot1 = engines.stockfish(time=0.002) # if time is to short they sometimes don't find any move
+    ebot2 = engines.stochfish(time=0.002) # and instead the engine retults some form of error/random move
+
+    game = chessMaster(ebot1, ebot2, verbose=False)
     # for i in range(100000000):
     #     game = chessMaster(bot1, bot3)
     #     if game.winner() == (1,0,0):
     #         break
     #     print("\r{}".format(i), end="")
     print(game.output())
-    sampleGames(nbot2, bot0, workers=2, parallel=False)
+    sampleGames(ebot1, ebot2, workers=2, parallel=False)
+    sampleGames(ebot1, ebot1, workers=2, parallel=False)
+    ebot1.quit()
+    ebot2.quit()
+
     # sampleGames(minimax.arrogantBot(), simple.randomBot())
     # sampleGames(simple.randomBot(), bot3)
     # sampleGames(simple.randomBot(), bot1)
