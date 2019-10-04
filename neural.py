@@ -475,7 +475,7 @@ if __name__ == "__main__":
     loss_fun = nn.MSELoss()
     games = []
     # opponentList = [aggroBot(), randomBot(), naiveMinimaxBot(), PLAYER]
-    STOCKFISH = stockfish(time=0.001)
+    STOCKFISH = stockfish(time=0.002)
     # opponentList = [opponent, PLAYER]
     opponentList = [STOCKFISH]
     for epoch in range(EPOCHS):
