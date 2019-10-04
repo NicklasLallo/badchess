@@ -36,7 +36,7 @@ def whiteWinnerLabeller(board, outcome, discount, stockfish=None):
         outcome = float(stockfish.evalPos(board))
     return [outcome]
 
-def matchesToTensor(boards, label_fun, out_size, only_winner=False, stockfish=None):
+def matchesToTensor(boards, label_fun, out_size, only_winner=False, stockfish=None, discounted=False):
     '''
     Takes a list of Board and returns a Tensor of all boardstates and a Tensor with labels
     label_fun takes a board and the outcome of the game and returns a label for that board
@@ -45,6 +45,8 @@ def matchesToTensor(boards, label_fun, out_size, only_winner=False, stockfish=No
 
     The outputs can also be labeled by the stockfish engine instead of the game output if one is provided.
     Technically any bot that has .evalPos() implemented should be useable to labeling
+
+    discount is optional
     '''
     num_boardstates = sum([len(board.move_stack) for board in boards])
     boardstatesTensor = torch.zeros([num_boardstates, 65])
@@ -69,8 +71,10 @@ def matchesToTensor(boards, label_fun, out_size, only_winner=False, stockfish=No
                 if len(board.move_stack) > 0:
                     # don't pop if the stack had an odd size (white won)
                     board.pop() # skip over the moves of the losing side
-                    discount *= 0.9 # make it still decay at the same speed as otherwise
-            discount *= 0.9
+                    if discounted:
+                        discount *= 0.9 # make it still decay at the same speed as otherwise
+            if discounted:
+                discount *= 0.9
     return boardstatesTensor, resultsTensor
 
 
