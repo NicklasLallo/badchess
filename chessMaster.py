@@ -101,14 +101,16 @@ def playSingleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard
     games = []
     prefix = "Playing "+str(num_games)+" games: "
     chessUtils.printProgressBar(0, num_games, prefix, suffix = 'Complete', length = 20)
+    current = 0
     try:
         for i in range(num_games):
             chessUtils.printProgressBar(i+1, num_games, prefix, suffix = 'Complete', length = 20)
             games.append(chessMaster(agentA, agentB, log, chessVariant))
+            current = i
     except KeyboardInterrupt:
         pass
     if save:
-        zaveGamez(games, 'games.pickle')
+        zaveGamez(games, 'saved_' + str(current) + '_games.pickle')
     return games
 
 def playMultipleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False, log=False, save=False):
@@ -198,7 +200,7 @@ if __name__ == "__main__":
     ebot1 = engines.stockfish(time=0.002) # if time is to short they sometimes don't find any move
     ebot2 = engines.stochfish(time=0.002) # and instead the engine retults some form of error/random move
 
-    game = chessMaster(ebot1, ebot2, verbose=False)
+    # game = chessMaster(ebot1, ebot2, verbose=False)
     game = chessMaster(nbot2, bot0, verbose=False)
     #game = chessMaster(nnibExtraLarge, bot0, verbose=True)
     # for i in range(100000000):
@@ -207,8 +209,9 @@ if __name__ == "__main__":
     #         break
     #     print("\r{}".format(i), end="")
     print(game.output())
-    sampleGames(ebot1, ebot2, workers=2, parallel=False)
-    sampleGames(ebot1, ebot1, workers=2, parallel=False)
+    # sampleGames(ebot1, ebot2, workers=2, parallel=False)
+    # sampleGames(ebot1, ebot1, workers=2, parallel=False)
+    playSingleGames(ebot1, ebot2, 100000, workers=2, chessVariant='Standard', display_progress=False, log=False, save=True)
     ebot1.quit()
     ebot2.quit()
     # sampleGames(minimax.arrogantBot(), simple.randomBot())
