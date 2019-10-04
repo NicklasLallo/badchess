@@ -26,9 +26,9 @@ class stockfish(chessBot):
         # board.push(result.move)
         return [result.move]
 
-    def evalPos(self, board):
+    def evalPos(self, board): # points from white's point of view
         info = self.engine.analyse(board, chess.engine.Limit(time=0.200))
-        return int(info["score"])
+        return int(info["score"].white())
 
 class stochfish(stockfish):
     # Stochastic stockfish

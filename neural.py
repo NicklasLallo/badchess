@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.utils.data as data
 import chess
-import chessUtils
+import chessUtils as cu
 import numpy as np
 import time
 import random
@@ -152,9 +152,33 @@ class NeuralMoveInstructionBot(NeuralBot):
     def evalPos(self, board):
         return 0.5
 
-def labelMove(board, outcome, discount):
-    assert outcome != "1/2-1/2", "NeuralMoveInstructionBot should not be trained on draws!"
-    move = board.pop()
+class NeuralMoveInstructionBotv2(NeuralBot):
+    def __init__(self, model=None, gpu=False):
+        super().__init__(model, gpu, 81) # 81, each combination of 9 piece categories and 9 move categories
+
+    def makeMove(self, board, moves, verbose):
+        boardTensor = boardstateToTensor(board).unsqueeze(0)
+        if self.gpu:
+            boardTensor = boardTensor.cuda()
+        numpy_moves = self.model(boardTensor).detach().cpu().numpy()
+        candidate_moves = numpy_moves.argsort() # has the indexes of the sorted moves lowest -> highest
+        candidate_moves = np.flip(candidate_moves) # highest -> lowest
+        candidate_moves = np.squeeze(candidate_moves) # remove extra useless dimension
+        for candidate_move in candidate_moves:
+            # print(candidate_move)
+            move = (int(candidate_move / 9), int(candidate_move % 9))
+            # fist value should be piece type, second move type
+            selectedMoves, movePossible = checkIfMove(move, board)
+            if movePossible:
+                break
+        if verbose:
+            print("Selected moves: " + selectedMoves)
+        return selectedMoves
+
+    def evalPos(self, board):
+        return 0.5
+
+def move_to_cat(board, move):
     pieceFile = chess.square_file(move.from_square)
     pieceType = board.piece_type_at(move.from_square)
     if pieceType == 3:
@@ -203,19 +227,84 @@ def labelMove(board, outcome, discount):
     if chess.square_file(move.from_square) < chess.square_file(move.to_square):
         moves[8] = 1
 
-    outputArray = pieces+moves
-    # If active player is white and lost
-    if outcome == "0-1" and board.turn:
-        outputArray = [1-elem for elem in outputArray]
-    # Or if active player is black and lost
-    elif outcome == "1-0" and not board.turn:
-        outputArray = [1-elem for elem in outputArray]
-    # Otherwise the player who is active won
+    return pieces+moves
 
+def instructionLabel18(board, outcome, discount, stockfish=None): # for 18 long output
+    if not stockfish:
+        assert outcome != "1/2-1/2", "NeuralMoveInstructionBot should not be trained on draws!"
+    else: # if stockfish!
+        pre_move_score = stockfish.evalPos(board)
+    move = board.pop()
+    outputArray = move_to_cat(board, move)
+    if not stockfish:
+        # If active player is white and lost
+        if outcome == "0-1" and board.turn:
+            outputArray = [1 - elem for elem in outputArray]
+        # Or if active player is black and lost
+        elif outcome == "1-0" and not board.turn:
+            outputArray = [1 - elem for elem in outputArray]
+        # Otherwise the player who is active won
+
+        # Discount early moves to matter less than later moves
+        outputArray = [(elem - 0.5)*discount+0.5 for elem in outputArray]
+    else: # if stockfish!
+        post_move_score = stockfish.evalPos(board) # fixed point of view
+        if not board.turn: # not because this is after we pop the move stack
+            score = post_move_score - pre_move_score # maximize score for white
+        else:
+            score = pre_move_score - post_move_score # minimize score for white
+        # scale the output rewards based on the score difference the move makes
+        # as well as based on the discount
+        outputArray = [((0.5+score)*elem-0.5)*discount+0.5 for elem in outputArray]
     # Push the move to reset the board again
     board.push(move)
-    # Discount early moves to matter less than later moves
-    outputArray = [(elem-0.5)*discount+0.5 for elem in outputArray]
+    return outputArray
+
+def convert_81(input_array):
+    # convert from 18 to 81
+    allcombos = []
+    for pieceT in input_array[0:9]:
+        for moveT in input_array[9:18]:
+            allcombos.append(moveT*pieceT)
+            # [piece1 * moves,
+            #  piece2 * moves,
+            # ...
+            # piece9 * moves]
+    return allcombos
+
+def instructionLabel81(board, outcome, discount, stockfish=None):
+    # given a move, find each category that contains that move.
+    # then scale each category based on the inverse category size
+    # and then scale the total based on how stockfish thinks this move changed
+    # the over all position compared to before
+    if not stockfish:
+        assert outcome != "1/2-1/2", "NeuralMoveInstructionBot should not be trained on draws!"
+    else: # if stockfish!
+        pre_move_score = stockfish.evalPos(board)
+    move = board.pop()
+    outputArray = move_to_cat(board, move)
+    outputArray = convert_81(outputArray) # from 18 (9*2) to 81 (9*9)
+    # scale but number of moves in each category
+    density = np.array([0] * 81)
+    for move in board.legal_moves:
+        # For each possible move, find which categories it fits in and increase them by one
+        # denisty is a nparray so it should do elementwise addition and not pythonList append
+        density += convert_81(move_to_cat(board, move))
+    # normalize density
+    density = cu.normalized(density) # returns a np array
+    # pythonlist - nparray is elementwize subtraction to nparray output
+    outputArray -= density # subtract density to favour small categories
+    if stockfish:
+        post_move_score = stockfish.evalPos(board) # fixed point of view
+        if not board.turn: # not because this is after we pop the move stack
+            score = post_move_score - pre_move_score # maximize score for white
+        else:
+            score = pre_move_score - post_move_score # minimize score for white
+        outputArray = [((0.5+score)*elem-0.5)*discount+0.5 for elem in outputArray]
+    else:
+        outputArray = [(elem-0.5)*discount+0.5 for elem in outputArray]
+    # Push the move to reset the board again
+    board.push(move)
     return outputArray
 
 def pickMoveFromCategory(pieceList, moveList, board, verbose=False):
@@ -354,7 +443,7 @@ if __name__ == "__main__":
     GAMES = 100
     GAMES2 = int(GAMES / 2)
     BATCH_SIZE = 1000
-    GPU = True
+    GPU = False
     # PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=False)
     model = nn.Sequential(
         nn.Linear(65, 256),
@@ -370,7 +459,8 @@ if __name__ == "__main__":
         nn.Linear(256, 18),
         nn.Sigmoid()
     )
-    LOAD_FILE = "instruction_neural_net_extralarge.pt"; PLAYER = NeuralMoveInstructionBot(model=LOAD_FILE, gpu=GPU); LABELLER = labelMove; OUT_SIZE=18; ONLY_WINNER=True
+    # LOAD_FILE = "instruction_neural_net_extralarge.pt"; PLAYER = NeuralMoveInstructionBot(model=LOAD_FILE, gpu=GPU); LABELLER = instructionLabel18; OUT_SIZE=18; ONLY_WINNER=True
+    LOAD_FILE = "instruction_neural_net_v2_extralarge.pt"; PLAYER = NeuralMoveInstructionBotv2(model=None, gpu=GPU); LABELLER = instructionLabel81; OUT_SIZE=81; ONLY_WINNER=True
     # LOAD_FILE = "not_as_bad_neural_net_large.pt"; PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=GPU); LABELLER = whiteWinnerLabeller; OUT_SIZE=1; ONLY_WINNER=False
     # GPU = torch.cuda.is_available()
     # OPPONENT = aggroBot()
