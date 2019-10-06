@@ -178,7 +178,7 @@ class NeuralMoveInstructionBotv2(NeuralBot):
         candidate_moves = np.squeeze(candidate_moves) # remove extra useless dimension
         for candidate_move in candidate_moves:
             # print(candidate_move)
-            move = (int(candidate_move / 9), int(candidate_move % 9))
+            move = (int(candidate_move % 9), int(candidate_move / 9))
             # fist value should be piece type, second move type
             selectedMoves, movePossible = checkIfMove(move, board)
             if movePossible:
@@ -292,29 +292,58 @@ def instructionLabel81(board, outcome, discount, stockfish=None):
     if not stockfish:
         assert outcome != "1/2-1/2", "NeuralMoveInstructionBot should not be trained on draws without stockfish!"
     else: # if stockfish!
-        pre_move_score = stockfish.evalPos(board)
+        post_move_score = stockfish.evalPos(board) # post because it works backwards
     move = board.pop()
-    outputArray = move_to_cat(board, move)
-    outputArray = convert_81(outputArray) # from 18 (9*2) to 81 (9*9)
+    outputArray18 = move_to_cat(board, move)
+    outputArray = convert_81(outputArray18) # from 18 (9*2) to 81 (9*9)
     # scale with number of moves in each category
     # Fast?
-    if not SPEEDHACK:
-        density = np.array([0] * 81)
-        for move in board.legal_moves:
-            # For each possible move, find which categories it fits in and increase them by one
-            # denisty is a nparray so it should do elementwise addition and not pythonList append
-            density += convert_81(move_to_cat(board, move))
-        # normalize density
-        density = cu.normalized(density) # returns a np array
-        # pythonlist - nparray is elementwize subtraction to nparray output
-        outputArray -= density # subtract density to favour small categories
+    density = np.array([0] * 81)
+    for legal_move in board.legal_moves:
+        # For each possible move, find which categories it fits in and increase them by one
+        # denisty is a nparray so it should do elementwise addition and not pythonList append
+        density += convert_81(move_to_cat(board, legal_move))
+    # normalize density
+    density = cu.normalized(density) # returns a np array
+    # pythonlist - nparray is elementwise subtraction to nparray output
+    # outputArray -= density # subtract density to favour small categories
+    # Elementwise divide only when non zero
+    density = np.squeeze(density)
+    # print("\npre dens: " + str(outputArray18))
+    for i in range(0,len(outputArray)):
+        if outputArray[i]:
+            if density[i]:
+                outputArray[i] /= density[i]
+    outputArray = cu.normalized(outputArray)
+
     if stockfish:
-        post_move_score = stockfish.evalPos(board) # fixed point of view
-        if not board.turn: # not because this is after we pop the move stack
-            score = post_move_score - pre_move_score # maximize score for white
-        else:
+        pre_move_score = stockfish.evalPos(board) # fixed point of view
+        if board.turn:
             score = pre_move_score - post_move_score # minimize score for white
-        outputArray = [((0.5+score)*elem-0.5)*discount+0.5 for elem in outputArray]
+        else:
+            score = post_move_score - pre_move_score # maximize score for white
+        # print("score: Pre: {} Post {} Diff: {}".format(pre_move_score,post_move_score,(score+10)/2000))
+        outputArray = [(((score+10)/2010)*elem-0.5)*discount+0.5 for elem in outputArray] # Linear scaling of score or log?
+
+        # debug code
+        if False:
+            candidate_moves = torch.Tensor(outputArray).detach().cpu().numpy().argsort() # has the indexes of the sorted moves lowest -> highest
+            candidate_moves = np.flip(candidate_moves) # highest -> lowest
+            candidate_moves = np.squeeze(candidate_moves) # remove extra useless dimension
+            for candidate_move in candidate_moves:
+                # print(candidate_move)
+                moveTmp = (int(candidate_move % 9), int(candidate_move / 9))
+                # fist value should be piece type, second move type
+                selectedMoves, movePossible = checkIfMove(moveTmp, board)
+                if movePossible:
+                    print("move possible: " + str(moveTmp))
+                    break
+            pieceType = board.piece_type_at(move.from_square)
+            print("debug.\nmove: {}\nPiece: {}\n18: {}\n81: {}\nDensity: {}\noutputArray: {}\nSelectedMoves:{}".format(move,pieceType,move_to_cat(board, move),convert_81(move_to_cat(board, move)),density,outputArray, selectedMoves))
+            for moveI in selectedMoves:
+                pieceTypeOutput = board.piece_type_at(moveI.from_square)
+                print(pieceTypeOutput)
+            quit()
     else:
         # If active player is white and lost
         if outcome == "0-1" and board.turn:
@@ -463,7 +492,7 @@ def checkIfMove(move, board, debug=False):
 
 if __name__ == "__main__":
     EPOCHS = 100
-    GAMES = 60
+    GAMES = 2
     GAMES2 = int(GAMES / 2)
     GAMES3 = GAMES * 3
     BATCH_SIZE = 1000
@@ -488,7 +517,6 @@ if __name__ == "__main__":
     # LOAD_FILE = "not_as_bad_neural_net_large.pt"; PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=GPU); LABELLER = whiteWinnerLabeller; OUT_SIZE=1; ONLY_WINNER=False
     # GPU = torch.cuda.is_available()
     # OPPONENT = aggroBot()
-    SPEEDHACK = True
     MAX_TRAIN_GAMES = 850
     optimizer = torch.optim.Adam(PLAYER.model.parameters())
     loss_fun = nn.MSELoss()
@@ -558,7 +586,7 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-            print("\rEpoch {} [{}/{}] - Loss {}".format(epoch, i, len(dataloader), loss.item()),end="")
+            print("\r\tEpoch {} [{}/{}] - Loss {}".format(epoch, i+1, len(dataloader), loss.item()),end="")
         print("")
         # PLAYER.model.cpu()
         torch.save(PLAYER.model, LOAD_FILE)
