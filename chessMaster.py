@@ -60,9 +60,9 @@ class chessMaster:
             if verbose:
                 print(str(self.board))
             if active:
-                movelist = agentA.makeMove(self.board, self.board.legal_moves, verbose)
+                movelist = agentA.makeMove(self.board.copy(), self.board.legal_moves, verbose)
             else:
-                movelist = agentB.makeMove(self.board, self.board.legal_moves, verbose)
+                movelist = agentB.makeMove(self.board.copy(), self.board.legal_moves, verbose)
             active = not active
 
             #todo logic
@@ -142,9 +142,9 @@ def sampleGames(agentA, agentB, chessVariant='Standard', workers=2, parallel=Tru
     results=(0,0,0)
     prefix = "Playing "+str(sampleSize)+" games: "
     if not parallel:
-        games = playSingleGames(agentA, agentB, sampleSize, workers, chessVariant, False)
+        games = playSingleGames(agentA, agentB, sampleSize, workers, chessVariant, log=False, display_progress=True)
     else:
-        games = playMultipleGames(agentA, agentB, sampleSize, workers, chessVariant, False)
+        games = playMultipleGames(agentA, agentB, sampleSize, workers, chessVariant, log=False, display_progress=True)
     for game in games:
         results = tuple(map(operator.add, results, game.winner()))
     saveToJSON(agentA, agentB, resultA=results)
@@ -198,10 +198,10 @@ if __name__ == "__main__":
 
 
     ebot1 = engines.stockfish(time=0.002) # if time is to short they sometimes don't find any move
-    ebot2 = engines.stochfish(time=0.002) # and instead the engine retults some form of error/random move
+    ebot2 = engines.stochfish(time=0.002, noise=0.5, noise_decay=0.05) # and instead the engine retults some form of error/random move
 
     # game = chessMaster(ebot1, ebot2, verbose=False)
-    game = chessMaster(nbot2, bot0, verbose=False)
+    game = chessMaster(bot3, ebot2, verbose=False)
     #game = chessMaster(nnibExtraLarge, bot0, verbose=True)
     # for i in range(100000000):
     #     game = chessMaster(bot1, bot3)
@@ -211,9 +211,11 @@ if __name__ == "__main__":
     print(game.output())
     # sampleGames(ebot1, ebot2, workers=2, parallel=False)
     # sampleGames(ebot1, ebot1, workers=2, parallel=False)
-    playSingleGames(ebot1, ebot2, 100000, workers=2, chessVariant='Standard', display_progress=False, log=False, save=True)
+    # playSingleGames(ebot1, ebot2, 100000, workers=2, chessVariant='Standard', display_progress=False, log=False, save=True)
+    # playMultipleGames(bot3, bot4, 100, workers=4, display_progress=True)
+    # sampleGames(bot3, bot4, workers=4, parallel=True)
+    sampleGames(bot3, ebot2, parallel=False)
     ebot1.quit()
     ebot2.quit()
-    # sampleGames(minimax.arrogantBot(), simple.randomBot())
     # sampleGames(simple.randomBot(), bot3)
     # sampleGames(simple.randomBot(), bot1)
