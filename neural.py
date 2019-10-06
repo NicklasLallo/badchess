@@ -8,7 +8,7 @@ import time
 import random
 from bots.simple import chessBot, randomBot, aggroBot
 from bots.minimax import suicideBot, naiveMinimaxBot, minimax
-from bots.engines import stockfish
+from bots.engines import stockfish, stochfish
 # from chessMaster import chessMaster
 import chessMaster
 import operator
@@ -62,6 +62,7 @@ def matchesToTensor(boards, label_fun, out_size, only_winner=False, stockfish=No
                 if outcome == "1/2-1/2":
                     continue
             boardstatesTensor[current_board,:] = boardstateToTensor(board)
+            print("\rLabeling. Game [{}/{}] with length: {}".format(i+1,len(boards),len(board.move_stack)),end="")
             resultsTensor[current_board, :] = torch.Tensor(label_fun(board, outcome, discount, stockfish))
             current_board += 1
             board.pop()
@@ -75,6 +76,7 @@ def matchesToTensor(boards, label_fun, out_size, only_winner=False, stockfish=No
                         discount *= 0.9 # make it still decay at the same speed as otherwise
             if discounted:
                 discount *= 0.9
+    print("")
     return boardstatesTensor, resultsTensor
 
 
@@ -241,7 +243,7 @@ def move_to_cat(board, move):
 
 def instructionLabel18(board, outcome, discount, stockfish=None): # for 18 long output
     if not stockfish:
-        assert outcome != "1/2-1/2", "NeuralMoveInstructionBot should not be trained on draws!"
+        assert outcome != "1/2-1/2", "NeuralMoveInstructionBot should not be trained on draws without stockfish!"
     else: # if stockfish!
         pre_move_score = stockfish.evalPos(board)
     move = board.pop()
@@ -288,22 +290,24 @@ def instructionLabel81(board, outcome, discount, stockfish=None):
     # and then scale the total based on how stockfish thinks this move changed
     # the over all position compared to before
     if not stockfish:
-        assert outcome != "1/2-1/2", "NeuralMoveInstructionBot should not be trained on draws!"
+        assert outcome != "1/2-1/2", "NeuralMoveInstructionBot should not be trained on draws without stockfish!"
     else: # if stockfish!
         pre_move_score = stockfish.evalPos(board)
     move = board.pop()
     outputArray = move_to_cat(board, move)
     outputArray = convert_81(outputArray) # from 18 (9*2) to 81 (9*9)
-    # scale but number of moves in each category
-    density = np.array([0] * 81)
-    for move in board.legal_moves:
-        # For each possible move, find which categories it fits in and increase them by one
-        # denisty is a nparray so it should do elementwise addition and not pythonList append
-        density += convert_81(move_to_cat(board, move))
-    # normalize density
-    density = cu.normalized(density) # returns a np array
-    # pythonlist - nparray is elementwize subtraction to nparray output
-    outputArray -= density # subtract density to favour small categories
+    # scale with number of moves in each category
+    # Fast?
+    if not SPEEDHACK:
+        density = np.array([0] * 81)
+        for move in board.legal_moves:
+            # For each possible move, find which categories it fits in and increase them by one
+            # denisty is a nparray so it should do elementwise addition and not pythonList append
+            density += convert_81(move_to_cat(board, move))
+        # normalize density
+        density = cu.normalized(density) # returns a np array
+        # pythonlist - nparray is elementwize subtraction to nparray output
+        outputArray -= density # subtract density to favour small categories
     if stockfish:
         post_move_score = stockfish.evalPos(board) # fixed point of view
         if not board.turn: # not because this is after we pop the move stack
@@ -312,7 +316,16 @@ def instructionLabel81(board, outcome, discount, stockfish=None):
             score = pre_move_score - post_move_score # minimize score for white
         outputArray = [((0.5+score)*elem-0.5)*discount+0.5 for elem in outputArray]
     else:
-        outputArray = [(elem-0.5)*discount+0.5 for elem in outputArray]
+        # If active player is white and lost
+        if outcome == "0-1" and board.turn:
+            outputArray = [1 - elem for elem in outputArray]
+        # Or if active player is black and lost
+        elif outcome == "1-0" and not board.turn:
+            outputArray = [1 - elem for elem in outputArray]
+        # Otherwise the player who is active won
+
+        # Discount early moves to matter less than later moves
+        outputArray = [(elem - 0.5)*discount+0.5 for elem in outputArray]
     # Push the move to reset the board again
     board.push(move)
     return outputArray
@@ -450,10 +463,11 @@ def checkIfMove(move, board, debug=False):
 
 if __name__ == "__main__":
     EPOCHS = 100
-    GAMES = 100
+    GAMES = 60
     GAMES2 = int(GAMES / 2)
+    GAMES3 = GAMES * 3
     BATCH_SIZE = 1000
-    GPU = False
+    GPU = True
     # PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=False)
     model = nn.Sequential(
         nn.Linear(65, 256),
@@ -470,16 +484,19 @@ if __name__ == "__main__":
         nn.Sigmoid()
     )
     # LOAD_FILE = "instruction_neural_net_extralarge.pt"; PLAYER = NeuralMoveInstructionBot(model=LOAD_FILE, gpu=GPU); LABELLER = instructionLabel18; OUT_SIZE=18; ONLY_WINNER=True
-    LOAD_FILE = "instruction_neural_net_v2_extralarge.pt"; PLAYER = NeuralMoveInstructionBotv2(model=None, gpu=GPU); LABELLER = instructionLabel81; OUT_SIZE=81; ONLY_WINNER=False
+    LOAD_FILE = "instruction_neural_net_v2_extralarge.pt"; PLAYER = NeuralMoveInstructionBotv2(model=LOAD_FILE, gpu=GPU); LABELLER = instructionLabel81; OUT_SIZE=81; ONLY_WINNER=False
     # LOAD_FILE = "not_as_bad_neural_net_large.pt"; PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=GPU); LABELLER = whiteWinnerLabeller; OUT_SIZE=1; ONLY_WINNER=False
     # GPU = torch.cuda.is_available()
     # OPPONENT = aggroBot()
+    SPEEDHACK = True
     MAX_TRAIN_GAMES = 850
     optimizer = torch.optim.Adam(PLAYER.model.parameters())
     loss_fun = nn.MSELoss()
     games = []
     # opponentList = [aggroBot(), randomBot(), naiveMinimaxBot(), PLAYER]
-    STOCKFISH = stockfish(time=0.002)
+    STOCKFISH = stockfish(time=0.0008)
+    STOCHFISH = stochfish(time=0.0012)
+    IGNORE_DRAWS = False
     # opponentList = [opponent, PLAYER]
     opponentList = [STOCKFISH]
     for epoch in range(EPOCHS):
@@ -500,15 +517,24 @@ if __name__ == "__main__":
         print("results: ", gameresults)
         with open('trainingLog.tsv', 'a') as f:
             f.write("%s\t%s\t%s\t%s\t%s" % (str(type(PLAYER).__name__),str(type(OPPONENT).__name__),str(gameresults[0]),str(gameresults[1]),str(gameresults[2])))
-        # print(new_games)
-        new_games = [game.board for game in new_games if game.winner() != (0,0,1)]
+        if GAMES3 and STOCKFISH and STOCHFISH:
+            print("Stock vs Stoch: " + str(GAMES3))
+            new_games3 = chessMaster.playSingleGames(STOCKFISH, STOCHFISH, GAMES3, workers=2, display_progress=True, log=False)
+            new_games += new_games3
+        if IGNORE_DRAWS:
+            new_games = [game.board for game in new_games if game.winner() != (0,0,1)]
+        else:
+            new_games = [game.board for game in new_games]
         if len(new_games)>0 and not new_games[0].is_game_over():
             exit()
         games = new_games + games
         # for game in games:
         #     # print(game, game.result(), game.is_fivefold_repetition(), len(game.move_stack), "\n\n")
         #     # print(labelMove(game))
+        # This doesn't really do anything
         games = games[:min(MAX_TRAIN_GAMES, len(new_games))]
+        # games = games[:MAX_TRAIN_GAMES]
+        print("Training on " + str(len(games)) + " games.")
         if len(games) == 0:
             print("no games to train on")
             print("Epoch {} - Loss NaN".format(epoch))
@@ -531,11 +557,14 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-            # print("\rEpoch {} [{}/{}] - Loss {}".format(epoch, i, len(dataloader), loss.item()),end="")
+            print("\rEpoch {} [{}/{}] - Loss {}".format(epoch, i, len(dataloader), loss.item()),end="")
+        print("")
         # PLAYER.model.cpu()
         torch.save(PLAYER.model, LOAD_FILE)
         print("Epoch {} - Loss {}".format(epoch, epoch_loss/(i+1)))
         with open('trainingLog.tsv', 'a') as f:
             f.write("\t%s\n" % (str(epoch_loss/(i+1))))
-    print("stopping stockfish")
-    opponent.quit()
+    print("Drowning the stocky fishes")
+    if STOCHFISH:
+        STOCHFISH.quit()
+    STOCKFISH.quit()
