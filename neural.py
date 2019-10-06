@@ -532,6 +532,7 @@ if __name__ == "__main__":
         #     # print(game, game.result(), game.is_fivefold_repetition(), len(game.move_stack), "\n\n")
         #     # print(labelMove(game))
         # This doesn't really do anything
+        # If we want to save results between epochs we should save labeled tensors
         games = games[:min(MAX_TRAIN_GAMES, len(new_games))]
         # games = games[:MAX_TRAIN_GAMES]
         print("Training on " + str(len(games)) + " games.")
