@@ -27,8 +27,9 @@ class stockfish(chessBot):
         return [result.move]
 
     def evalPos(self, board): # points from white's point of view
-        info = self.engine.analyse(board, chess.engine.Limit(time=self.time))
-        score = info["score"].white().score(mate_score=2000)
+        # print("eval turn:",board.turn)
+        info = self.engine.analyse(board, chess.engine.Limit(time=self.time*4))
+        score = info["score"].white().score(mate_score=5000)
         return score
 
 class stochfish(stockfish):

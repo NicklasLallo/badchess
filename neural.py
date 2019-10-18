@@ -62,7 +62,7 @@ def matchesToTensor(boards, label_fun, out_size, only_winner=False, stockfish=No
                 if outcome == "1/2-1/2":
                     continue
             boardstatesTensor[current_board,:] = boardstateToTensor(board)
-            print("\rLabeling. Game [{}/{}] with length: {}".format(i+1,len(boards),len(board.move_stack)),end="")
+            # print("\rLabeling. Game [{}/{}] with length: {}".format(i+1,len(boards),len(board.move_stack)),end="")
             resultsTensor[current_board, :] = torch.Tensor(label_fun(board, outcome, discount, stockfish))
             current_board += 1
             board.pop()
@@ -166,7 +166,23 @@ class NeuralMoveInstructionBot(NeuralBot):
 
 class NeuralMoveInstructionBotv2(NeuralBot):
     def __init__(self, model=None, gpu=False):
-        super().__init__(model, gpu, 81) # 81, each combination of 9 piece categories and 9 move categories
+        self.model = model
+        if self.model is None:
+            # Default model
+            # Slightly different from the other NN bots
+            self.model = nn.Sequential(
+                nn.Linear(65, 256),
+                nn.LeakyReLU(),
+                nn.Linear(256, 128),
+                nn.LeakyReLU(),
+                nn.Linear(128, 64),
+                nn.LeakyReLU(),
+                nn.Linear(64, 64),
+                nn.LeakyReLU(),
+                nn.Linear(64, 81),
+                nn.Tanh()
+            )
+        super().__init__(self.model, gpu, 81) # 81, each combination of 9 piece categories and 9 move categories
 
     def makeMove(self, board, moves, verbose):
         boardTensor = boardstateToTensor(board).unsqueeze(0)
@@ -319,11 +335,20 @@ def instructionLabel81(board, outcome, discount, stockfish=None):
     if stockfish:
         pre_move_score = stockfish.evalPos(board) # fixed point of view
         if board.turn:
-            score = pre_move_score - post_move_score # minimize score for white
-        else:
+            # White's turn
             score = post_move_score - pre_move_score # maximize score for white
+        else:
+            # Black's turn
+            score = pre_move_score - post_move_score # minimize score for white
+        print(outcome, "turn:", board.turn, "The move made by this side scored:", score, "pre:", pre_move_score, "post:",post_move_score)
         # print("score: Pre: {} Post {} Diff: {}".format(pre_move_score,post_move_score,(score+10)/2000))
-        outputArray = [(((score+10)/2010)*elem-0.5)*discount+0.5 for elem in outputArray] # Linear scaling of score or log?
+        score = score+10 # Prefer any previously made moves slightly even if stockfish disagrees
+        score = score / 300 # make score slightly less extreme
+        # print(outputArray,'\n',score)
+        outputArray = outputArray * score # numpy defaults to elementwise multiplication
+        outputArray = np.tanh(outputArray) # tanh the values to get them into the same range as the NN output
+        if discount != 1:
+            outputArray = [(elem-0.5)*discount+0.5 for elem in outputArray] # Discount the values if needed
 
         # debug code
         if False:
@@ -496,7 +521,8 @@ if __name__ == "__main__":
     GAMES2 = int(GAMES / 2)
     GAMES3 = GAMES * 3
     BATCH_SIZE = 1000
-    GPU = True
+    # GPU = True
+    GPU = torch.cuda.is_available()
     # PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=False)
     model = nn.Sequential(
         nn.Linear(65, 256),
@@ -513,7 +539,7 @@ if __name__ == "__main__":
         nn.Sigmoid()
     )
     # LOAD_FILE = "instruction_neural_net_extralarge.pt"; PLAYER = NeuralMoveInstructionBot(model=LOAD_FILE, gpu=GPU); LABELLER = instructionLabel18; OUT_SIZE=18; ONLY_WINNER=True
-    LOAD_FILE = "instruction_neural_net_v2_extralarge.pt"; PLAYER = NeuralMoveInstructionBotv2(model=LOAD_FILE, gpu=GPU); LABELLER = instructionLabel81; OUT_SIZE=81; ONLY_WINNER=False
+    LOAD_FILE = "instruction_neural_net_v2_extralarge.pt"; PLAYER = NeuralMoveInstructionBotv2(model=None, gpu=GPU); LABELLER = instructionLabel81; OUT_SIZE=81; ONLY_WINNER=False
     # LOAD_FILE = "not_as_bad_neural_net_large.pt"; PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=GPU); LABELLER = whiteWinnerLabeller; OUT_SIZE=1; ONLY_WINNER=False
     # GPU = torch.cuda.is_available()
     # OPPONENT = aggroBot()
