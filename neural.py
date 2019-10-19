@@ -5,6 +5,7 @@ import chess
 import chessUtils as cu
 import numpy as np
 import time
+import dill
 import random
 import pickle
 from bots.simple import chessBot, randomBot, aggroBot
@@ -527,12 +528,12 @@ if __name__ == "__main__":
     GAMES3 = GAMES * 3
     BATCH_SIZE = 1000
     #File or list of files to load preplayed games from (None if not loading games)
-    GAME_LOAD_FILE = "saved_63180_games.pickle" #None
+    GAME_LOAD_FILE = "saved_1_games.pickle"#"saved_63180_games.pickle" #None
     if not GAME_LOAD_FILE is None:
         if isinstance(GAME_LOAD_FILE, list):
             file_to_load = 0
         else:
-            loaded_games = pickle.load(open(GAME_LOAD_FILE, 'rb'))
+            loaded_games = dill.loads(pickle.load(open(GAME_LOAD_FILE, 'rb')))
     # GPU = True
     GPU = torch.cuda.is_available()
     # PLAYER = NeuralBoardValueBot(model=LOAD_FILE, gpu=False)
@@ -591,7 +592,7 @@ if __name__ == "__main__":
             new_games += new_games3
         if not GAME_LOAD_FILE is None:
             if isinstance(GAME_LOAD_FILE, list):
-                new_games += pickle.load(open(GAME_LOAD_FILE[file_to_load], 'rb'))
+                new_games += dill.loads(pickle.load(open(GAME_LOAD_FILE[file_to_load], 'rb')))
                 file_to_load = file_to_load+1 % len(GAME_LOAD_FILE)
             else:
                 new_games += loaded_games

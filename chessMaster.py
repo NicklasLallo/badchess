@@ -3,7 +3,8 @@ import chess.pgn
 import numpy as np
 import time
 import random
-from bots import simple, minimax, engines
+import dill
+from bots import simple, minimax#, engines
 import operator
 import chessUtils
 import json
@@ -92,10 +93,10 @@ def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 def zaveGamez( boards, file_name):
-    pickle.dump(boards, open(file_name, 'wb'))
+    pickle.dump(dill.dumps(boards), open(file_name, 'wb'))
 
 def zloadGamez( boards, file_name):
-    return pickle.load(open(file_name, 'rb'))
+    return dill.loads(pickle.load(open(file_name, 'rb')))
 
 def playSingleGames(agentA, agentB, num_games, workers=2, chessVariant='Standard', display_progress=False, log=True, save=False):
     games = []
@@ -197,21 +198,21 @@ if __name__ == "__main__":
     nnibExtraLarge = neural.NeuralMoveInstructionBot(model="instruction_neural_net_extralarge.pt", gpu=True)
 
 
-    ebot1 = engines.stockfish(time=0.002) # if time is to short they sometimes don't find any move
-    ebot2 = engines.stochfish(time=0.002, noise=0.5, noise_decay=0.05) # and instead the engine retults some form of error/random move
+    #ebot1 = engines.stockfish(time=0.002) # if time is to short they sometimes don't find any move
+    #ebot2 = engines.stochfish(time=0.002, noise=0.5, noise_decay=0.05) # and instead the engine retults some form of error/random move
 
     # game = chessMaster(ebot1, ebot2, verbose=False)
-    game = chessMaster(bot3, ebot2, verbose=False)
+    #game = chessMaster(bot3, ebot2, verbose=False)
     #game = chessMaster(nnibExtraLarge, bot0, verbose=True)
     # for i in range(100000000):
     #     game = chessMaster(bot1, bot3)
     #     if game.winner() == (1,0,0):
     #         break
     #     print("\r{}".format(i), end="")
-    print(game.output())
+    #print(game.output())
     # sampleGames(ebot1, ebot2, workers=2, parallel=False)
     # sampleGames(ebot1, ebot1, workers=2, parallel=False)
-    # playSingleGames(ebot1, ebot2, 100000, workers=2, chessVariant='Standard', display_progress=False, log=False, save=True)
+    playSingleGames(bot1, bot2, 2, workers=2, chessVariant='Standard', display_progress=False, log=False, save=True)
     # playMultipleGames(bot3, bot4, 100, workers=4, display_progress=True)
     # sampleGames(bot3, bot4, workers=4, parallel=True)
     sampleGames(bot3, ebot2, parallel=False)
