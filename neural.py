@@ -62,7 +62,7 @@ def matchesToTensor(boards, label_fun, out_size, only_winner=False, stockfish=No
                 if outcome == "1/2-1/2":
                     continue
             boardstatesTensor[current_board,:] = boardstateToTensor(board)
-            # print("\rLabeling. Game [{}/{}] with length: {}".format(i+1,len(boards),len(board.move_stack)),end="")
+            print("\rLabeling. Game [{}/{}] with length: {}".format(i+1,len(boards),len(board.move_stack)),end="")
             resultsTensor[current_board, :] = torch.Tensor(label_fun(board, outcome, discount, stockfish))
             current_board += 1
             board.pop()
@@ -340,12 +340,16 @@ def instructionLabel81(board, outcome, discount, stockfish=None):
         else:
             # Black's turn
             score = pre_move_score - post_move_score # minimize score for white
-        print(outcome, "turn:", board.turn, "The move made by this side scored:", score, "pre:", pre_move_score, "post:",post_move_score)
+        # print(outcome, "turn:", board.turn, "The move made by this side scored:", score, "pre:", pre_move_score, "post:",post_move_score)
         # print("score: Pre: {} Post {} Diff: {}".format(pre_move_score,post_move_score,(score+10)/2000))
-        score = score+10 # Prefer any previously made moves slightly even if stockfish disagrees
-        score = score / 300 # make score slightly less extreme
+        # Stockfish seems to hate all moves a little, +40 should help
+        # 88 seems to be the starting advantage for being the active player
+        score = score+88 # Prefer any previously made moves slightly even if stockfish disagrees
+        # score = score+40 # Prefer any previously made moves slightly even if stockfish disagrees
+        scoreMultiplier = score / 100 # make score slightly less extreme
         # print(outputArray,'\n',score)
-        outputArray = outputArray * score # numpy defaults to elementwise multiplication
+        # print("OA:",outputArray,"score:", score,"scoreM:", scoreMultiplier,"final:", np.tanh(outputArray*scoreMultiplier))
+        outputArray = outputArray * scoreMultiplier # numpy defaults to elementwise multiplication
         outputArray = np.tanh(outputArray) # tanh the values to get them into the same range as the NN output
         if discount != 1:
             outputArray = [(elem-0.5)*discount+0.5 for elem in outputArray] # Discount the values if needed
@@ -548,8 +552,8 @@ if __name__ == "__main__":
     loss_fun = nn.MSELoss()
     games = []
     # opponentList = [aggroBot(), randomBot(), naiveMinimaxBot(), PLAYER]
-    STOCKFISH = stockfish(time=0.0008)
-    STOCHFISH = stochfish(time=0.0012)
+    STOCKFISH = stockfish(time=0.0012)
+    STOCHFISH = stockfish(time=0.0012)
     IGNORE_DRAWS = False
     # opponentList = [opponent, PLAYER]
     opponentList = [STOCKFISH]
@@ -557,6 +561,8 @@ if __name__ == "__main__":
         OPPONENT = random.choice(opponentList)
         print("Playing against", str(type(OPPONENT).__name__))
         print("Playing games as white")
+        new_games = []
+        new_games2 = []
         new_games = chessMaster.playSingleGames(PLAYER, OPPONENT, GAMES2, workers=2, display_progress=True, log=False)
         gameresults = (0,0,0)
         for g in new_games:
