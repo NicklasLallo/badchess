@@ -34,7 +34,7 @@ def whiteWinnerLabeller(board, outcome, discount, stockfish=None):
         else:
             outcome = 0.5
     else: # if stockfish!
-        outcome = float(stockfish.evalPos(board))
+        outcome = torch.nn.functional.sigmoid(float(stockfish.evalPos(board)))
     return [outcome]
 
 def matchesToTensor(boards, label_fun, out_size, only_winner=False, stockfish=None, discounted=False):
