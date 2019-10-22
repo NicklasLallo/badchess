@@ -528,7 +528,7 @@ if __name__ == "__main__":
     GAMES3 = GAMES * 3
     BATCH_SIZE = 1000
     #File or list of files to load preplayed games from (None if not loading games)
-    GAME_LOAD_FILE = "saved_1_games.pickle"#"saved_63180_games.pickle" #None
+    GAME_LOAD_FILE = "saved_63180_games.pickle" #None
     if not GAME_LOAD_FILE is None:
         if isinstance(GAME_LOAD_FILE, list):
             file_to_load = 0
@@ -562,7 +562,7 @@ if __name__ == "__main__":
     games = []
     # opponentList = [aggroBot(), randomBot(), naiveMinimaxBot(), PLAYER]
     STOCKFISH = stockfish(time=0.0012)
-    STOCHFISH = stockfish(time=0.0012)
+    STOCHFISH = stochfish(time=0.0012)
     IGNORE_DRAWS = False
     # opponentList = [opponent, PLAYER]
     opponentList = [STOCKFISH]
