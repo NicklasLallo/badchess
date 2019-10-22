@@ -198,8 +198,8 @@ if __name__ == "__main__":
     nnibExtraLarge = neural.NeuralMoveInstructionBot(model="instruction_neural_net_extralarge.pt", gpu=True)
 
 
-    #ebot1 = engines.stockfish(time=0.002) # if time is to short they sometimes don't find any move
-    #ebot2 = engines.stochfish(time=0.002, noise=0.5, noise_decay=0.05) # and instead the engine retults some form of error/random move
+    ebot1 = engines.stockfish(time=0.002) # if time is to short they sometimes don't find any move
+    ebot2 = engines.stochfish(time=0.002, noise=0.5, noise_decay=0.05) # and instead the engine retults some form of error/random move
 
     # game = chessMaster(ebot1, ebot2, verbose=False)
     #game = chessMaster(bot3, ebot2, verbose=False)
@@ -212,10 +212,10 @@ if __name__ == "__main__":
     #print(game.output())
     # sampleGames(ebot1, ebot2, workers=2, parallel=False)
     # sampleGames(ebot1, ebot1, workers=2, parallel=False)
-    playSingleGames(bot1, bot2, 2, workers=2, chessVariant='Standard', display_progress=False, log=False, save=True)
+    playSingleGames(ebot1, ebot2, 10000, workers=2, chessVariant='Standard', display_progress=True, log=False, save=True)
     # playMultipleGames(bot3, bot4, 100, workers=4, display_progress=True)
     # sampleGames(bot3, bot4, workers=4, parallel=True)
-    sampleGames(bot3, ebot2, parallel=False)
+    # sampleGames(bot3, ebot2, parallel=False)
     ebot1.quit()
     ebot2.quit()
     # sampleGames(simple.randomBot(), bot3)
